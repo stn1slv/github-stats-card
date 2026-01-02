@@ -156,22 +156,30 @@ def render_compact_layout(
         bars = []
         for lang in langs:
             percentage = (lang.size / total_size) * offset_width if total_size > 0 else 0
-            progress = percentage if percentage >= 10 else percentage + 10
+            # Add minimum width for visibility of small bars
+            width = percentage + 10 if percentage > 0 and percentage < 10 else percentage
             bars.append(
                 f'''
-                <rect mask="url(#rect-mask)" data-testid="lang-progress"
-                      x="{progress_offset}" y="0" width="{progress}" height="8"
-                      fill="{lang.color}" />
-            '''
+        <rect
+          mask="url(#rect-mask)"
+          data-testid="lang-progress"
+          x="{progress_offset}"
+          y="0"
+          width="{width}"
+          height="8"
+          fill="{lang.color}"
+        />
+      '''
             )
             progress_offset += percentage
 
         progress_bar = f'''
-        <mask id="rect-mask">
+  
+      <mask id="rect-mask">
           <rect x="0" y="0" width="{offset_width}" height="8" fill="white" rx="5"/>
         </mask>
         {"".join(bars)}
-        '''
+      '''
 
     # Language legend (2 columns)
     half = (len(langs) + 1) // 2
@@ -182,13 +190,15 @@ def render_compact_layout(
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         display_value = get_display_value(lang.size, percentage, stats_format)
         stagger_delay = (index + 3) * 150
-        text = f"{encode_html(lang.name)} {'' if hide_progress else display_value}"
-        return f'''
-        <g class="stagger" style="animation-delay: {stagger_delay}ms" transform="translate(0, {index * 25})">
-          <circle cx="5" cy="6" r="5" fill="{lang.color}" />
-          <text data-testid="lang-name" x="15" y="10" class="lang-name">{text}</text>
-        </g>
-        '''
+        text = f"{encode_html(lang.name)} {display_value}" if not hide_progress else encode_html(lang.name)
+        return f'''<g transform="translate(0, {index * 25})">
+    <g class="stagger" style="animation-delay: {stagger_delay}ms">
+      <circle cx="5" cy="6" r="5" fill="{lang.color}" />
+      <text data-testid="lang-name" x="15" y="10" class='lang-name'>
+        {text}
+      </text>
+    </g>
+  </g>'''
 
     col1 = "\n".join(render_lang_item(lang, i) for i, lang in enumerate(col1_langs))
     col2 = "\n".join(render_lang_item(lang, i) for i, lang in enumerate(col2_langs))
@@ -198,10 +208,9 @@ def render_compact_layout(
     return f'''
     {progress_bar}
     <g transform="translate(0, {y_offset})">
-      <g transform="translate(0, 0)">{col1}</g>
-      <g transform="translate(150, 0)">{col2}</g>
+      <g transform="translate(0, 0)">{col1}</g><g transform="translate(150, 0)">{col2}</g>
     </g>
-    '''
+  '''
 
 
 def render_donut_layout(
