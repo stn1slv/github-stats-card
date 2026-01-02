@@ -60,9 +60,10 @@ def render_card(
     if not disable_animations:
         animation_css = """
         .stagger {
-          animation: fadeIn 0.3s ease-in-out forwards;
+          opacity: 0;
+          animation: fadeInAnimation 0.3s ease-in-out forwards;
         }
-        @keyframes fadeIn {
+        @keyframes fadeInAnimation {
           from {
             opacity: 0;
           }
@@ -72,6 +73,14 @@ def render_card(
         }
         """
 
+    # Get ring color for rank circle CSS
+    ring_color = colors.get("ringColor") or title_color
+    if isinstance(ring_color, list):
+        ring_color = f"#{ring_color[1]}"
+    # Ensure ring color has # prefix
+    if not ring_color.startswith("#"):
+        ring_color = f"#{ring_color}"
+
     css = f"""
     <style>
       .header {{
@@ -79,15 +88,47 @@ def render_card(
         fill: {title_color};
       }}
       .stat {{
-        font: 14px 'Segoe UI', Ubuntu, "Helvetica Neue", Sans-Serif;
+        font: 600 14px 'Segoe UI', Ubuntu, "Helvetica Neue", Sans-Serif;
         fill: {text_color};
       }}
       .stat.bold {{
         font-weight: 700;
       }}
+      .not_bold {{
+        font-weight: 400;
+      }}
       .icon {{
         fill: {icon_color};
-        display: inline;
+        display: block;
+      }}
+      .rank-text {{
+        font: 800 24px 'Segoe UI', Ubuntu, Sans-Serif;
+        fill: {text_color};
+        animation: scaleInAnimation 0.3s ease-in-out forwards;
+      }}
+      .rank-circle-rim {{
+        stroke: {ring_color};
+        fill: none;
+        stroke-width: 6;
+        opacity: 0.2;
+      }}
+      .rank-circle {{
+        stroke: {ring_color};
+        stroke-dasharray: 250;
+        fill: none;
+        stroke-width: 6;
+        stroke-linecap: round;
+        opacity: 0.8;
+        transform-origin: -10px 8px;
+        transform: rotate(-90deg);
+      }}
+      @keyframes scaleInAnimation {{
+        from {{
+          transform: translate(-5px, 5px) scale(0);
+        }}
+        to {{
+          transform: translate(-5px, 5px) scale(1);
+        }}
       }}
       {animation_css}
     </style>

@@ -122,8 +122,9 @@ def test_render_stats_card_hide_rank():
     svg_with_rank = render_stats_card(stats, hide_rank=False)
     svg_without_rank = render_stats_card(stats, hide_rank=True)
 
-    assert "rank-circle" in svg_with_rank
-    assert "rank-circle" not in svg_without_rank
+    # Check for actual rank circle element, not just CSS classes
+    assert 'data-testid="rank-circle"' in svg_with_rank
+    assert 'data-testid="rank-circle"' not in svg_without_rank
 
 
 def test_render_stats_card_custom_title():

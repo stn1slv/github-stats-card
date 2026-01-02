@@ -29,6 +29,8 @@ def get_icon_svg(name: str, color: str = "currentColor") -> str:
     if not icon_path:
         return ""
 
-    return f"""<svg class="icon" viewBox="0 0 16 16" width="16" height="16" fill="{color}">
+    return f"""
+    <svg data-testid="icon" class="icon" viewBox="0 0 16 16" version="1.1" width="16" height="16">
       {icon_path}
-    </svg>"""
+    </svg>
+  """

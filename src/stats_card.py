@@ -199,20 +199,22 @@ def render_stats_card(
             icon_svg = get_icon_svg(stat["icon"], colors["iconColor"])
             label_x = 25
 
-        # Animation delay
-        delay = i * 150
+        # Animation delay starts at 450ms and increments by 150ms
+        delay = 450 + (i * 150)
 
         # Calculate value position (right-aligned)
-        value_x = 200  # Approximate position for value
+        value_x = 219.01  # Match reference position
 
         bold_class = "bold" if text_bold else ""
 
-        stat_svg = f"""
-    <g class="stagger" style="animation-delay: {delay}ms" transform="translate(25, {i * line_height})">
+        # Nested transform structure matching reference
+        stat_svg = f"""<g transform="translate(0, {i * line_height})">
+    <g class="stagger" style="animation-delay: {delay}ms" transform="translate(25, 0)">
       {icon_svg}
       <text class="stat {bold_class}" x="{label_x}" y="12.5">{label}:</text>
       <text class="stat {bold_class}" x="{value_x}" y="12.5">{formatted_value}</text>
-    </g>"""
+    </g>
+  </g>"""
 
         stat_items.append(stat_svg)
 
@@ -224,57 +226,36 @@ def render_stats_card(
             # Use first color from gradient
             ring_color_value = f"#{ring_color_value[1]}"
 
-        rank_x = 320
-        rank_y = 45
+        rank_x = 390.5
+        rank_y = 47.5
 
         rank_svg = f"""
-    <g transform="translate({rank_x}, {rank_y})">
-      <circle
-        class="rank-circle-rim"
-        cx="-10"
-        cy="8"
-        r="40"
-        stroke="{ring_color_value}"
-        stroke-width="4"
-        fill="none"
-        opacity="0.2"
-      />
-      <circle
-        class="rank-circle"
-        cx="-10"
-        cy="8"
-        r="40"
-        stroke="{ring_color_value}"
-        stroke-width="6"
-        fill="none"
-        stroke-dasharray="251.2"
-        stroke-dashoffset="{251.2 * (1 - (100 - rank_result['percentile']) / 100)}"
-        stroke-linecap="round"
-        transform="rotate(-90 -10 8)"
-      />
-      <g class="rank-text">
-        <text
-          x="-5"
-          y="3"
-          text-anchor="middle"
-          font-size="28"
-          font-weight="bold"
-          fill="{colors['titleColor']}"
-        >{rank_result['level']}</text>
-      </g>
-    </g>"""
+    <g data-testid="rank-circle"
+          transform="translate({rank_x}, {rank_y})">
+        <circle class="rank-circle-rim" cx="-10" cy="8" r="40" />
+        <circle class="rank-circle" cx="-10" cy="8" r="40" />
+        <g class="rank-text">
+          <text x="-5" y="3" alignment-baseline="central" dominant-baseline="central" text-anchor="middle" data-testid="level-rank-icon">
+          {rank_result['level']}
+        </text>
+        </g>
+      </g>"""
 
-    # Combine stat items
-    body = "\n".join(stat_items)
-    if rank_svg:
-        body += rank_svg
+    # Combine stat items wrapped in SVG structure
+    stats_content = "\n".join(stat_items)
+    body = f"""{rank_svg}
+    <svg x="0" y="0">
+      {stats_content}
+    </svg>"""
 
-    # Calculate card height
+    # Calculate card height to match reference
     num_stats = len(stat_items)
-    card_height = (num_stats * line_height) + 90  # Base height + padding
+    # Reference: 165 height for 5 stats with no title
+    # That's 5*25 = 125 + 40 = 165
+    card_height = (num_stats * line_height) + 40
 
-    # Use provided width or default
-    final_width = card_width or 450
+    # Use provided width or default to 467 (matches reference)
+    final_width = card_width or 467
 
     return render_card(
         title=title,
