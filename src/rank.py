@@ -2,6 +2,17 @@
 
 from typing import TypedDict
 
+from .constants import (
+    RANK_A_MINUS_THRESHOLD,
+    RANK_A_PLUS_THRESHOLD,
+    RANK_A_THRESHOLD,
+    RANK_B_MINUS_THRESHOLD,
+    RANK_B_PLUS_THRESHOLD,
+    RANK_B_THRESHOLD,
+    RANK_C_PLUS_THRESHOLD,
+    RANK_S_THRESHOLD,
+)
+
 
 class RankResult(TypedDict):
     """Result of rank calculation."""

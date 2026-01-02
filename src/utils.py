@@ -2,6 +2,8 @@
 
 from typing import Union
 
+from .constants import NUMBER_FORMAT_THOUSAND_DIVISOR
+
 
 def k_formatter(num: int, precision: Union[int, None] = None) -> str:
     """
@@ -26,12 +28,12 @@ def k_formatter(num: int, precision: Union[int, None] = None) -> str:
     sign = -1 if num < 0 else 1
 
     if precision is not None and 0 <= precision <= 2:
-        return f"{sign * abs_num / 1000:.{precision}f}k"
+        return f"{sign * abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR:.{precision}f}k"
 
-    if abs_num < 1000:
+    if abs_num < NUMBER_FORMAT_THOUSAND_DIVISOR:
         return str(sign * abs_num)
 
-    formatted = sign * round(abs_num / 1000, 1)
+    formatted = sign * round(abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR, 1)
     # Remove trailing .0
     if formatted == int(formatted):
         return f"{int(formatted)}k"

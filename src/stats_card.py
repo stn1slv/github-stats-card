@@ -4,6 +4,17 @@ from typing import Union
 
 from .card import render_card
 from .colors import get_card_colors
+from .constants import (
+    ANIMATION_INITIAL_DELAY_MS,
+    ANIMATION_STAGGER_DELAY_MS,
+    RANK_CIRCLE_X_OFFSET,
+    RANK_CIRCLE_Y_OFFSET,
+    STAT_LABEL_X_BASE,
+    STAT_LABEL_X_WITH_ICON,
+    STAT_LINE_HEIGHT,
+    STAT_VALUE_X_POSITION,
+    STATS_CARD_BASE_HEIGHT,
+)
 from .fetcher import UserStats
 from .i18n import get_translation
 from .icons import get_icon_svg
@@ -194,16 +205,16 @@ def render_stats_card(
 
         # Icon
         icon_svg = ""
-        label_x = 0
+        label_x = STAT_LABEL_X_BASE
         if show_icons:
             icon_svg = get_icon_svg(stat["icon"], colors["iconColor"])
-            label_x = 25
+            label_x = STAT_LABEL_X_WITH_ICON
 
         # Animation delay starts at 450ms and increments by 150ms
-        delay = 450 + (i * 150)
+        delay = ANIMATION_INITIAL_DELAY_MS + (i * ANIMATION_STAGGER_DELAY_MS)
 
         # Calculate value position (right-aligned)
-        value_x = 219.01  # Match reference position
+        value_x = STAT_VALUE_X_POSITION  # Match reference position
 
         bold_class = "bold" if text_bold else ""
 
@@ -226,8 +237,8 @@ def render_stats_card(
             # Use first color from gradient
             ring_color_value = f"#{ring_color_value[1]}"
 
-        rank_x = 390.5
-        rank_y = 47.5
+        rank_x = RANK_CIRCLE_X_OFFSET
+        rank_y = RANK_CIRCLE_Y_OFFSET
 
         rank_svg = f"""
     <g data-testid="rank-circle"
@@ -252,7 +263,7 @@ def render_stats_card(
     num_stats = len(stat_items)
     # Reference: 165 height for 5 stats with no title
     # That's 5*25 = 125 + 40 = 165
-    card_height = (num_stats * line_height) + 40
+    card_height = (num_stats * line_height) + STATS_CARD_BASE_HEIGHT
 
     # Use provided width or default to 467 (matches reference)
     final_width = card_width or 467

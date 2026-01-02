@@ -3,6 +3,19 @@
 from typing import Union
 
 from .colors import format_gradient
+from .constants import (
+    ANIMATION_FADE_DURATION_MS,
+    ANIMATION_SCALE_DURATION_MS,
+    FONT_FAMILY_HEADER,
+    FONT_FAMILY_STAT,
+    FONT_SIZE_HEADER,
+    FONT_SIZE_RANK,
+    FONT_SIZE_STAT,
+    FONT_WEIGHT_HEADER,
+    FONT_WEIGHT_RANK,
+    FONT_WEIGHT_STAT,
+    FONT_WEIGHT_STAT_BOLD,
+)
 from .utils import encode_html
 
 
@@ -58,19 +71,19 @@ def render_card(
     # CSS styles
     animation_css = ""
     if not disable_animations:
-        animation_css = """
-        .stagger {
+        animation_css = f"""
+        .stagger {{
           opacity: 0;
-          animation: fadeInAnimation 0.3s ease-in-out forwards;
-        }
-        @keyframes fadeInAnimation {
-          from {
+          animation: fadeInAnimation {ANIMATION_FADE_DURATION_MS / 1000}s ease-in-out forwards;
+        }}
+        @keyframes fadeInAnimation {{
+          from {{
             opacity: 0;
-          }
-          to {
+          }}
+          to {{
             opacity: 1;
-          }
-        }
+          }}
+        }}
         """
 
     # Get ring color for rank circle CSS
@@ -84,15 +97,15 @@ def render_card(
     css = f"""
     <style>
       .header {{
-        font: 600 18px 'Segoe UI', Ubuntu, Sans-Serif;
+        font: {FONT_WEIGHT_HEADER} {FONT_SIZE_HEADER}px {FONT_FAMILY_HEADER};
         fill: {title_color};
       }}
       .stat {{
-        font: 600 14px 'Segoe UI', Ubuntu, "Helvetica Neue", Sans-Serif;
+        font: {FONT_WEIGHT_STAT} {FONT_SIZE_STAT}px {FONT_FAMILY_STAT};
         fill: {text_color};
       }}
       .stat.bold {{
-        font-weight: 700;
+        font-weight: {FONT_WEIGHT_STAT_BOLD};
       }}
       .not_bold {{
         font-weight: 400;
@@ -102,9 +115,9 @@ def render_card(
         display: block;
       }}
       .rank-text {{
-        font: 800 24px 'Segoe UI', Ubuntu, Sans-Serif;
+        font: {FONT_WEIGHT_RANK} {FONT_SIZE_RANK}px {FONT_FAMILY_HEADER};
         fill: {text_color};
-        animation: scaleInAnimation 0.3s ease-in-out forwards;
+        animation: scaleInAnimation {ANIMATION_SCALE_DURATION_MS / 1000}s ease-in-out forwards;
       }}
       .rank-circle-rim {{
         stroke: {ring_color};

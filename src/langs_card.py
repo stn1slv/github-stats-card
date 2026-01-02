@@ -5,14 +5,20 @@ from typing import Union
 
 from .card import render_card
 from .colors import get_card_colors, parse_color
+from .constants import (
+    CARD_PADDING,
+    DEFAULT_LANG_COLOR,
+    DEFAULT_LANGS_CARD_WIDTH,
+    MAXIMUM_LANGS_COUNT,
+    MIN_CARD_WIDTH,
+    LANGS_COMPACT_COLUMN_WIDTH,
+    LANGS_COMPACT_ROW_HEIGHT,
+    LANGS_DONUT_RADIUS,
+    LANGS_PIE_RADIUS,
+    ANIMATION_STAGGER_DELAY_MS,
+)
 from .langs_fetcher import Language
 from .utils import clamp_value, encode_html
-
-DEFAULT_CARD_WIDTH = 300
-MIN_CARD_WIDTH = 280
-DEFAULT_LANG_COLOR = "#858585"
-CARD_PADDING = 25
-MAXIMUM_LANGS_COUNT = 20
 
 
 def trim_top_languages(
@@ -117,7 +123,7 @@ def render_normal_layout(
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         display_value = get_display_value(lang.size, percentage, stats_format)
-        stagger_delay = (index + 3) * 150
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
         item = f'''
         <g class="stagger" style="animation-delay: {stagger_delay}ms" transform="translate(0, {index * 40})">
@@ -189,7 +195,7 @@ def render_compact_layout(
     def render_lang_item(lang: Language, index: int) -> str:
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         display_value = get_display_value(lang.size, percentage, stats_format)
-        stagger_delay = (index + 3) * 150
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
         text = f"{encode_html(lang.name)} {display_value}" if not hide_progress else encode_html(lang.name)
         return f'''<g transform="translate(0, {index * 25})">
     <g class="stagger" style="animation-delay: {stagger_delay}ms">
@@ -208,7 +214,7 @@ def render_compact_layout(
     return f'''
     {progress_bar}
     <g transform="translate(0, {y_offset})">
-      <g transform="translate(0, 0)">{col1}</g><g transform="translate(150, 0)">{col2}</g>
+      <g transform="translate(0, 0)">{col1}</g><g transform="translate({LANGS_COMPACT_COLUMN_WIDTH}, 0)">{col2}</g>
     </g>
   '''
 
@@ -221,7 +227,7 @@ def render_donut_layout(
     text_color: str,
 ) -> str:
     """Render donut chart layout."""
-    radius = 40
+    radius = LANGS_DONUT_RADIUS
     circumference = 2 * math.pi * radius
     center_x, center_y = 100, 100
 
@@ -232,7 +238,7 @@ def render_donut_layout(
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         segment_length = (percentage / 100) * circumference
-        stagger_delay = (index + 3) * 150
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
         segments.append(
             f'''
@@ -251,7 +257,7 @@ def render_donut_layout(
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         display_value = get_display_value(lang.size, percentage, stats_format)
-        stagger_delay = (index + 3) * 150
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
         legend_items.append(
             f'''
@@ -279,7 +285,7 @@ def render_pie_layout(
     text_color: str,
 ) -> str:
     """Render pie chart layout."""
-    radius = 90
+    radius = LANGS_PIE_RADIUS
     center_x, center_y = 150, 100
 
     def polar_to_cartesian(
@@ -295,7 +301,7 @@ def render_pie_layout(
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         angle = (percentage / 100) * 360
-        stagger_delay = (index + 3) * 150
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
         # Calculate arc
         start_x, start_y = polar_to_cartesian(center_x, center_y, radius, current_angle)
@@ -322,14 +328,14 @@ def render_pie_layout(
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         display_value = get_display_value(lang.size, percentage, stats_format)
-        stagger_delay = (index + 3) * 150
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
         col = 0 if index < half else 1
         row = index if index < half else index - half
 
         legend_items.append(
             f'''
         <g class="stagger" style="animation-delay: {stagger_delay}ms" 
-           transform="translate({col * 150}, {row * 25})">
+           transform="translate({col * LANGS_COMPACT_COLUMN_WIDTH}, {row * LANGS_COMPACT_ROW_HEIGHT})">
           <circle cx="5" cy="6" r="5" fill="{lang.color}" />
           <text x="15" y="10" class="lang-name">{encode_html(lang.name)} {display_value}</text>
         </g>
@@ -407,7 +413,7 @@ def render_top_languages(
     langs, total_size = trim_top_languages(top_langs, langs_count, hide)
 
     # Card dimensions
-    width = card_width or DEFAULT_CARD_WIDTH
+    width = card_width or DEFAULT_LANGS_CARD_WIDTH
     width = max(width, MIN_CARD_WIDTH)
 
     # Calculate height based on layout

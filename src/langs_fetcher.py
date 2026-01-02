@@ -5,6 +5,8 @@ from typing import Union
 
 import requests
 
+from .constants import API_TIMEOUT, DEFAULT_LANG_COLOR, GRAPHQL_ENDPOINT
+
 
 @dataclass
 class Language:
@@ -16,10 +18,8 @@ class Language:
     count: int  # number of repos using this language
 
 
-class LanguageFetchError(Exception):
-    """Error fetching language data from GitHub API."""
-
-    pass
+# Import LanguageFetchError from exceptions module for backwards compatibility
+from .exceptions import LanguageFetchError
 
 
 def fetch_top_languages(
@@ -70,13 +70,13 @@ def fetch_top_languages(
 
     try:
         response = requests.post(
-            "https://api.github.com/graphql",
+            GRAPHQL_ENDPOINT,
             json={"query": query, "variables": {"login": username}},
             headers={
                 "Authorization": f"bearer {token}",
                 "Content-Type": "application/json",
             },
-            timeout=30,
+            timeout=API_TIMEOUT,
         )
         response.raise_for_status()
         data = response.json()
@@ -112,7 +112,7 @@ def fetch_top_languages(
             if not lang_name:
                 continue
 
-            lang_color = node.get("color") or "#858585"
+            lang_color = node.get("color") or DEFAULT_LANG_COLOR
             lang_size = edge.get("size", 0)
 
             if lang_name in languages:

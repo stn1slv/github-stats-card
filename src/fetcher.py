@@ -5,6 +5,8 @@ from typing import Any, TypedDict, Union
 
 import requests
 
+from .constants import API_TIMEOUT, GRAPHQL_ENDPOINT
+
 
 class UserStats(TypedDict):
     """GitHub user statistics."""
@@ -23,10 +25,8 @@ class UserStats(TypedDict):
     discussionsAnswered: int
 
 
-class FetchError(Exception):
-    """Error fetching data from GitHub API."""
-
-    pass
+# Import FetchError from exceptions module for backwards compatibility
+from .exceptions import FetchError
 
 
 def fetch_stats(
@@ -178,10 +178,10 @@ def fetch_stats(
     # Execute GraphQL query
     try:
         response = requests.post(
-            "https://api.github.com/graphql",
+            GRAPHQL_ENDPOINT,
             json={"query": query, "variables": variables},
             headers=headers,
-            timeout=30,
+            timeout=API_TIMEOUT,
         )
         response.raise_for_status()
         data = response.json()
@@ -230,13 +230,13 @@ def fetch_stats(
 
         try:
             response = requests.post(
-                "https://api.github.com/graphql",
+                GRAPHQL_ENDPOINT,
                 json={
                     "query": pagination_query,
                     "variables": {"login": username, "after": end_cursor},
                 },
                 headers=headers,
-                timeout=30,
+                timeout=API_TIMEOUT,
             )
             response.raise_for_status()
             page_data = response.json()
@@ -267,7 +267,7 @@ def fetch_stats(
                     **headers,
                     "Accept": "application/vnd.github.cloak-preview+json",
                 },
-                timeout=30,
+                timeout=API_TIMEOUT,
             )
             search_response.raise_for_status()
             search_data = search_response.json()
@@ -296,10 +296,10 @@ def fetch_stats(
 
         try:
             response = requests.post(
-                "https://api.github.com/graphql",
+                GRAPHQL_ENDPOINT,
                 json={"query": discussions_query, "variables": {"login": username}},
                 headers=headers,
-                timeout=30,
+                timeout=API_TIMEOUT,
             )
             response.raise_for_status()
             disc_data = response.json()

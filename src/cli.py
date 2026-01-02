@@ -6,8 +6,9 @@ from typing import Union
 
 import click
 
-from .fetcher import FetchError, fetch_stats
-from .langs_fetcher import LanguageFetchError, fetch_top_languages
+from .exceptions import FetchError, LanguageFetchError
+from .fetcher import fetch_stats
+from .langs_fetcher import fetch_top_languages
 from .langs_card import render_top_languages
 from .stats_card import render_stats_card
 
