@@ -22,7 +22,6 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 
 - **[Usage Examples](EXAMPLES.md)** - 13+ detailed examples
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
-- **[Project Summary](PROJECT_SUMMARY.md)** - Implementation overview
 
 ## Installation
 
@@ -78,10 +77,10 @@ export GITHUB_TOKEN=ghp_your_token_here
 
 ```bash
 # GitHub stats card
-github-stats-card stats -u your-username -o stats.svg
+uv run github-stats-card stats -u your-username -o stats.svg
 
 # Top languages card
-github-stats-card top-langs -u your-username -o top-langs.svg
+uv run github-stats-card top-langs -u your-username -o top-langs.svg
 ```
 
 ## Usage
@@ -94,38 +93,38 @@ The CLI provides two main commands:
 
 ```bash
 # Generate with default theme
-github-stats-card stats -u octocat -o stats.svg
+uv run github-stats-card stats -u octocat -o stats.svg
 
 # Use a specific theme
-github-stats-card stats -u octocat -o stats.svg --theme vue-dark
+uv run github-stats-card stats -u octocat -o stats.svg --theme vue-dark
 
 # Show icons and hide border
-github-stats-card stats -u octocat -o stats.svg --show-icons --hide-border
+uv run github-stats-card stats -u octocat -o stats.svg --show-icons --hide-border
 ```
 
 ### Top Languages Card
 
 ```bash
 # Generate with default layout (normal)
-github-stats-card top-langs -u octocat -o top-langs.svg
+uv run github-stats-card top-langs -u octocat -o top-langs.svg
 
 # Compact layout (467px width, matches stats card)
-github-stats-card top-langs -u octocat -o top-langs.svg --layout compact
+uv run github-stats-card top-langs -u octocat -o top-langs.svg --layout compact
 
 # Donut chart with dark theme
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --layout donut --theme vue-dark --hide-border
 
 # Hide specific languages
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --hide "HTML,CSS,Makefile" --langs-count 8
 
 # Balanced weighting preset (70% size, 30% repo count)
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --weighting balanced
 
 # Pie chart with bytes display
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --layout pie --stats-format bytes
 ```
 
@@ -134,41 +133,41 @@ github-stats-card top-langs -u octocat -o top-langs.svg \
 **Stats Card:**
 ```bash
 # Hide specific stats
-github-stats-card stats -u octocat -o stats.svg --hide stars,prs
+uv run github-stats-card stats -u octocat -o stats.svg --hide stars,prs
 
 # Show additional stats
-github-stats-card stats -u octocat -o stats.svg --show reviews,discussions_started
+uv run github-stats-card stats -u octocat -o stats.svg --show reviews,discussions_started
 
 # Include all commits (not just current year)
-github-stats-card stats -u octocat -o stats.svg --include-all-commits
+uv run github-stats-card stats -u octocat -o stats.svg --include-all-commits
 
 # Custom colors
-github-stats-card stats -u octocat -o stats.svg \
+uv run github-stats-card stats -u octocat -o stats.svg \
   --title-color ff6e96 \
   --text-color f8f8f2 \
   --bg-color 282a36
 
 # Gradient background
-github-stats-card stats -u octocat -o stats.svg \
+uv run github-stats-card stats -u octocat -o stats.svg \
   --bg-color "90,ff0000,00ff00,0000ff"
 ```
 
 **Top Languages Card:**
 ```bash
 # Exclude specific repositories
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --exclude-repo "repo1,repo2"
 
 # Use weighting presets
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --weighting balanced  # Options: size-only, balanced, expertise, diversity
 
 # Custom weighting (manual control)
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --size-weight 0.5 --count-weight 0.5
 
 # Custom width and colors
-github-stats-card top-langs -u octocat -o top-langs.svg \
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --card-width 400 \
   --title-color ff6e96 \
   --text-color f8f8f2 \
@@ -177,7 +176,7 @@ github-stats-card top-langs -u octocat -o top-langs.svg \
 
 ### All Options
 
-Run `github-stats-card stats --help` or `github-stats-card top-langs --help` for complete option lists.
+Run `uv run github-stats-card stats --help` or `uv run github-stats-card top-langs --help` for complete option lists.
 
 **Stats Card Options:**
 - Basic: username, token, output, theme
