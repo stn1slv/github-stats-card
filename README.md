@@ -222,6 +222,93 @@ Here are some popular themes:
 
 ## GitHub Actions Integration
 
+### Method 1: Using as a Custom Action (Recommended)
+
+The easiest way to use this project in GitHub Actions is as a custom action:
+
+```yaml
+name: Update GitHub Stats
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Daily at midnight UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  update-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Generate stats card
+      - name: Generate GitHub Stats Card
+        uses: stn1slv/github-stats-card@main
+        with:
+          card-type: stats
+          username: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          output: img/github-stats.svg
+          theme: vue-dark
+          show-icons: true
+          hide-border: true
+          include-all-commits: true
+      
+      # Generate top languages card
+      - name: Generate Top Languages Card
+        uses: stn1slv/github-stats-card@main
+        with:
+          card-type: top-langs
+          username: ${{ github.repository_owner }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          output: img/top-langs.svg
+          theme: vue-dark
+          layout: compact
+          hide-border: true
+          langs-count: 8
+          weighting: balanced
+      
+      # Commit and push changes
+      - name: Commit and push if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add img/*.svg
+          git diff --staged --quiet || git commit -m "Update GitHub stats [skip ci]"
+          git push
+```
+
+#### Available Action Inputs
+
+**Common inputs:**
+- `card-type` (required) - Type of card: `stats` or `top-langs`
+- `username` (required) - GitHub username
+- `token` (required) - GitHub Personal Access Token
+- `output` (required) - Output SVG file path
+- `theme` - Theme name (default: `default`)
+- `hide-border` - Hide card border (default: `false`)
+- `hide-title` - Hide card title (default: `false`)
+- `custom-title` - Custom card title
+- `title-color`, `text-color`, `bg-color`, `border-color` - Custom colors
+- `card-width` - Card width in pixels
+- `border-radius` - Border radius (default: `4.5`)
+- `disable-animations` - Disable CSS animations (default: `false`)
+
+**Stats card inputs:**
+- `show-icons` - Show icons next to stats (default: `false`)
+- `hide-rank` - Hide rank circle (default: `false`)
+- `include-all-commits` - Include all commits, not just current year (default: `false`)
+- `hide` - Comma-separated stats to hide
+
+**Top-langs card inputs:**
+- `layout` - Layout style: `normal`, `compact`, `donut`, `donut-vertical`, `pie` (default: `normal`)
+- `langs-count` - Number of languages to show (default: `5`)
+- `hide-progress` - Hide progress bars (default: `false`)
+- `weighting` - Weighting preset: `size-only`, `balanced`, `expertise`, `diversity`
+- `exclude-repo` - Comma-separated repos to exclude
+- `hide` - Comma-separated languages to hide
+
+### Method 2: Direct CLI Installation
+
 Create `.github/workflows/update-stats.yml`:
 
 ```yaml

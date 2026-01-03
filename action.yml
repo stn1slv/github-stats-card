@@ -1,0 +1,214 @@
+name: 'GitHub Stats Card'
+description: 'Generate beautiful GitHub stats cards as SVG images'
+author: 'stn1slv'
+
+branding:
+  icon: 'bar-chart-2'
+  color: 'blue'
+
+inputs:
+  card-type:
+    description: 'Type of card to generate (stats or top-langs)'
+    required: true
+    default: 'stats'
+  
+  username:
+    description: 'GitHub username'
+    required: true
+  
+  token:
+    description: 'GitHub Personal Access Token'
+    required: true
+  
+  output:
+    description: 'Output SVG file path'
+    required: true
+  
+  theme:
+    description: 'Theme name (default, dark, vue-dark, etc.)'
+    required: false
+    default: 'default'
+  
+  # Stats card specific options
+  show-icons:
+    description: 'Show icons next to stats (stats card only)'
+    required: false
+    default: 'false'
+  
+  hide-border:
+    description: 'Hide card border'
+    required: false
+    default: 'false'
+  
+  hide-title:
+    description: 'Hide card title'
+    required: false
+    default: 'false'
+  
+  hide-rank:
+    description: 'Hide rank circle (stats card only)'
+    required: false
+    default: 'false'
+  
+  include-all-commits:
+    description: 'Include all commits, not just current year (stats card only)'
+    required: false
+    default: 'false'
+  
+  hide:
+    description: 'Comma-separated stats/languages to hide'
+    required: false
+    default: ''
+  
+  custom-title:
+    description: 'Custom card title'
+    required: false
+    default: ''
+  
+  # Top-langs specific options
+  layout:
+    description: 'Layout style (normal, compact, donut, donut-vertical, pie) - top-langs only'
+    required: false
+    default: 'normal'
+  
+  langs-count:
+    description: 'Number of languages to show (top-langs only)'
+    required: false
+    default: '5'
+  
+  hide-progress:
+    description: 'Hide progress bars (top-langs only)'
+    required: false
+    default: 'false'
+  
+  weighting:
+    description: 'Weighting preset (size-only, balanced, expertise, diversity) - top-langs only'
+    required: false
+    default: ''
+  
+  exclude-repo:
+    description: 'Comma-separated repos to exclude (top-langs only)'
+    required: false
+    default: ''
+  
+  # Color customization
+  title-color:
+    description: 'Custom title color (hex without #)'
+    required: false
+    default: ''
+  
+  text-color:
+    description: 'Custom text color (hex without #)'
+    required: false
+    default: ''
+  
+  bg-color:
+    description: 'Custom background color or gradient'
+    required: false
+    default: ''
+  
+  border-color:
+    description: 'Custom border color (hex without #)'
+    required: false
+    default: ''
+  
+  # Other options
+  card-width:
+    description: 'Card width in pixels'
+    required: false
+    default: ''
+  
+  border-radius:
+    description: 'Border radius'
+    required: false
+    default: '4.5'
+  
+  disable-animations:
+    description: 'Disable CSS animations'
+    required: false
+    default: 'false'
+
+outputs:
+  svg-path:
+    description: 'Path to the generated SVG file'
+    value: ${{ steps.generate.outputs.svg-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout action repository
+      uses: actions/checkout@v4
+      with:
+        repository: stn1slv/github-stats-card
+        path: .github-stats-card-action
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    
+    - name: Install uv
+      shell: bash
+      run: pip install uv
+    
+    - name: Install github-stats-card
+      shell: bash
+      run: |
+        cd .github-stats-card-action
+        uv pip install --system -e .
+    
+    - name: Generate card
+      id: generate
+      shell: bash
+      run: |
+        # Build command based on card type
+        if [ "${{ inputs.card-type }}" = "stats" ]; then
+          CMD="github-stats-card stats"
+        else
+          CMD="github-stats-card top-langs"
+        fi
+        
+        # Add common options
+        CMD="$CMD -u '${{ inputs.username }}'"
+        CMD="$CMD -t '${{ inputs.token }}'"
+        CMD="$CMD -o '${{ inputs.output }}'"
+        CMD="$CMD --theme ${{ inputs.theme }}"
+        
+        # Add flags
+        [ "${{ inputs.hide-border }}" = "true" ] && CMD="$CMD --hide-border"
+        [ "${{ inputs.hide-title }}" = "true" ] && CMD="$CMD --hide-title"
+        [ "${{ inputs.disable-animations }}" = "true" ] && CMD="$CMD --disable-animations"
+        
+        # Add stats-specific options
+        if [ "${{ inputs.card-type }}" = "stats" ]; then
+          [ "${{ inputs.show-icons }}" = "true" ] && CMD="$CMD --show-icons"
+          [ "${{ inputs.hide-rank }}" = "true" ] && CMD="$CMD --hide-rank"
+          [ "${{ inputs.include-all-commits }}" = "true" ] && CMD="$CMD --include-all-commits"
+        fi
+        
+        # Add top-langs specific options
+        if [ "${{ inputs.card-type }}" = "top-langs" ]; then
+          CMD="$CMD --layout ${{ inputs.layout }}"
+          CMD="$CMD --langs-count ${{ inputs.langs-count }}"
+          [ "${{ inputs.hide-progress }}" = "true" ] && CMD="$CMD --hide-progress"
+          [ -n "${{ inputs.weighting }}" ] && CMD="$CMD --weighting ${{ inputs.weighting }}"
+          [ -n "${{ inputs.exclude-repo }}" ] && CMD="$CMD --exclude-repo '${{ inputs.exclude-repo }}'"
+        fi
+        
+        # Add optional parameters
+        [ -n "${{ inputs.hide }}" ] && CMD="$CMD --hide '${{ inputs.hide }}'"
+        [ -n "${{ inputs.custom-title }}" ] && CMD="$CMD --custom-title '${{ inputs.custom-title }}'"
+        [ -n "${{ inputs.title-color }}" ] && CMD="$CMD --title-color ${{ inputs.title-color }}"
+        [ -n "${{ inputs.text-color }}" ] && CMD="$CMD --text-color ${{ inputs.text-color }}"
+        [ -n "${{ inputs.bg-color }}" ] && CMD="$CMD --bg-color '${{ inputs.bg-color }}'"
+        [ -n "${{ inputs.border-color }}" ] && CMD="$CMD --border-color ${{ inputs.border-color }}"
+        [ -n "${{ inputs.card-width }}" ] && CMD="$CMD --card-width ${{ inputs.card-width }}"
+        
+        CMD="$CMD --border-radius ${{ inputs.border-radius }}"
+        
+        # Execute command (mask token in output)
+        echo "Running: github-stats-card ${{ inputs.card-type }} -u ${{ inputs.username }} -o ${{ inputs.output }} ..."
+        eval $CMD
+        
+        # Set output
+        echo "svg-path=${{ inputs.output }}" >> $GITHUB_OUTPUT
