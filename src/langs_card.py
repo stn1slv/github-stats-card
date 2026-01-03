@@ -4,11 +4,10 @@ import math
 from typing import Optional
 
 from .card import render_card
-from .colors import get_card_colors, parse_color
+from .colors import get_card_colors
 from .config import LangsCardConfig
 from .constants import (
     CARD_PADDING,
-    DEFAULT_LANG_COLOR,
     DEFAULT_LANGS_CARD_WIDTH,
     DEFAULT_LANGS_COMPACT_WIDTH,
     MAXIMUM_LANGS_COUNT,

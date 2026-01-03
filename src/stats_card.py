@@ -10,7 +10,6 @@ from .constants import (
     RANK_CIRCLE_Y_OFFSET,
     STAT_LABEL_X_BASE,
     STAT_LABEL_X_WITH_ICON,
-    STAT_LINE_HEIGHT,
     STAT_VALUE_X_POSITION,
     STATS_CARD_BASE_HEIGHT,
 )
@@ -186,11 +185,6 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
     # Rank circle
     rank_svg = ""
     if not config.hide_rank:
-        ring_color_value = colors.get("ringColor") or colors["titleColor"]
-        if isinstance(ring_color_value, list):
-            # Use first color from gradient
-            ring_color_value = f"#{ring_color_value[1]}"
-
         rank_x = RANK_CIRCLE_X_OFFSET
         rank_y = RANK_CIRCLE_Y_OFFSET
 

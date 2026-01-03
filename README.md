@@ -226,6 +226,8 @@ Here are some popular themes:
 
 The easiest way to use this project in GitHub Actions is as a custom action:
 
+> **Security Best Practice:** Always pin actions to a specific version tag or commit SHA rather than using `@main`. This prevents supply-chain attacks where a compromised repository could inject malicious code into your workflows.
+
 ```yaml
 name: Update GitHub Stats
 
@@ -242,7 +244,7 @@ jobs:
       
       # Generate stats card
       - name: Generate GitHub Stats Card
-        uses: stn1slv/github-stats-card@main
+        uses: stn1slv/github-stats-card@v1.0.0  # Always pin to a specific version or commit SHA for security
         with:
           card-type: stats
           username: ${{ github.repository_owner }}
@@ -255,7 +257,7 @@ jobs:
       
       # Generate top languages card
       - name: Generate Top Languages Card
-        uses: stn1slv/github-stats-card@main
+        uses: stn1slv/github-stats-card@v1.0.0  # Always pin to a specific version or commit SHA for security
         with:
           card-type: top-langs
           username: ${{ github.repository_owner }}
