@@ -11,6 +11,8 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 - 🎨 **50+ Built-in Themes** - Choose from a variety of beautiful color schemes
 - 📊 **Comprehensive Stats** - Stars, commits, PRs, issues, reviews, and more
 - 🔤 **Top Languages Card** - Show your most used programming languages with 5 layouts
+- ⚖️ **Smart Weighting** - Preset rankings (balanced, expertise, diversity) for language stats
+- 📐 **Aligned Layouts** - Compact top-langs card matches stats card width (467px)
 - 🔧 **Highly Customizable** - Customize colors, layout, and content
 - 🚀 **GitHub Actions Ready** - Perfect for automated daily/weekly updates
 - 🎯 **Local Generation** - No external service dependencies
@@ -18,7 +20,6 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](QUICKSTART.md)** - Get started in 5 minutes
 - **[Usage Examples](EXAMPLES.md)** - 13+ detailed examples
 - **[Contributing Guide](CONTRIBUTING.md)** - How to contribute
 - **[Project Summary](PROJECT_SUMMARY.md)** - Implementation overview
@@ -108,7 +109,7 @@ github-stats-card stats -u octocat -o stats.svg --show-icons --hide-border
 # Generate with default layout (normal)
 github-stats-card top-langs -u octocat -o top-langs.svg
 
-# Compact layout
+# Compact layout (467px width, matches stats card)
 github-stats-card top-langs -u octocat -o top-langs.svg --layout compact
 
 # Donut chart with dark theme
@@ -118,6 +119,10 @@ github-stats-card top-langs -u octocat -o top-langs.svg \
 # Hide specific languages
 github-stats-card top-langs -u octocat -o top-langs.svg \
   --hide "HTML,CSS,Makefile" --langs-count 8
+
+# Balanced weighting preset (70% size, 30% repo count)
+github-stats-card top-langs -u octocat -o top-langs.svg \
+  --weighting balanced
 
 # Pie chart with bytes display
 github-stats-card top-langs -u octocat -o top-langs.svg \
@@ -154,7 +159,11 @@ github-stats-card stats -u octocat -o stats.svg \
 github-stats-card top-langs -u octocat -o top-langs.svg \
   --exclude-repo "repo1,repo2"
 
-# Custom weighting (balance size and repo count)
+# Use weighting presets
+github-stats-card top-langs -u octocat -o top-langs.svg \
+  --weighting balanced  # Options: size-only, balanced, expertise, diversity
+
+# Custom weighting (manual control)
 github-stats-card top-langs -u octocat -o top-langs.svg \
   --size-weight 0.5 --count-weight 0.5
 
@@ -184,9 +193,15 @@ Run `github-stats-card stats --help` or `github-stats-card top-langs --help` for
 - Display: hide-border, hide-title, hide-progress
 - Layout: layout (normal/compact/donut/donut-vertical/pie), card-width, border-radius
 - Languages: langs-count, hide (languages), exclude-repo
-- Ranking: size-weight, count-weight
+- Ranking: weighting (size-only/balanced/expertise/diversity), size-weight, count-weight
 - Colors: title-color, text-color, bg-color, border-color
 - Other: stats-format (percentages/bytes), custom-title, disable-animations
+
+**Weighting Presets:**
+- `size-only` (default) - 100% code size, 0% repo count
+- `balanced` - 70% code size, 30% repo count (recommended)
+- `expertise` - 50% code size, 50% repo count
+- `diversity` - 40% code size, 60% repo count
 
 ## Available Themes
 
@@ -257,23 +272,25 @@ jobs:
             --hide-border \
             --include-all-commits
           
-          # Top languages card - Dark theme
+          # Top languages card - Dark theme (compact layout, 467px width)
           github-stats-card top-langs \
             --username ${{ github.repository_owner }} \
             --output img/top-langs-dark.svg \
             --theme vue-dark \
             --layout compact \
             --hide-border \
-            --langs-count 8
+            --langs-count 8 \
+            --weighting balanced
           
-          # Top languages card - Light theme
+          # Top languages card - Light theme (compact layout, 467px width)
           github-stats-card top-langs \
             --username ${{ github.repository_owner }} \
             --output img/top-langs-light.svg \
             --theme vue \
             --layout compact \
             --hide-border \
-            --langs-count 8
+            --langs-count 8 \
+            --weighting balanced
       
       - name: Commit and push if changed
         run: |
@@ -373,10 +390,15 @@ from src.langs_fetcher import fetch_top_languages
 from src.langs_card import render_top_languages
 from src.config import LangsCardConfig
 
-# Fetch language stats
-langs = fetch_top_languages(username="octocat", token="ghp_your_token")
+# Fetch language stats with balanced weighting
+langs = fetch_top_languages(
+    username="octocat", 
+    token="ghp_your_token",
+    size_weight=0.7,  # 70% code size
+    count_weight=0.3   # 30% repo count
+)
 
-# Create configuration
+# Create configuration (compact layout uses 467px width by default)
 config = LangsCardConfig(
     theme="vue-dark",
     layout="compact",

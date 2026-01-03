@@ -6,6 +6,14 @@ from typing import Union
 
 import click
 
+# Weighting presets for language ranking
+WEIGHTING_PRESETS = {
+    "size-only": {"size_weight": 1.0, "count_weight": 0.0},
+    "balanced": {"size_weight": 0.7, "count_weight": 0.3},
+    "expertise": {"size_weight": 0.5, "count_weight": 0.5},
+    "diversity": {"size_weight": 0.4, "count_weight": 0.6},
+}
+
 from .config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig
 from .exceptions import FetchError, LanguageFetchError
 from .fetcher import fetch_stats
@@ -349,16 +357,19 @@ def stats(
     help="Comma-separated repos to exclude",
 )
 @click.option(
+    "--weighting",
+    type=click.Choice(["size-only", "balanced", "expertise", "diversity"]),
+    help="Weighting preset: size-only (default), balanced (70/30), expertise (50/50), diversity (40/60)",
+)
+@click.option(
     "--size-weight",
     type=float,
-    default=1.0,
-    help="Weight for byte count in ranking (default: 1.0)",
+    help="Weight for byte count in ranking (overrides --weighting, default: 1.0)",
 )
 @click.option(
     "--count-weight",
     type=float,
-    default=0.0,
-    help="Weight for repo count in ranking (default: 0.0)",
+    help="Weight for repo count in ranking (overrides --weighting, default: 0.0)",
 )
 @click.option(
     "--card-width",
@@ -414,8 +425,9 @@ def top_langs(
     langs_count: Union[int, None],
     hide: str,
     exclude_repo: str,
-    size_weight: float,
-    count_weight: float,
+    weighting: Union[str, None],
+    size_weight: Union[float, None],
+    count_weight: Union[float, None],
     card_width: Union[int, None],
     title_color: Union[str, None],
     text_color: Union[str, None],
@@ -448,15 +460,37 @@ def top_langs(
       # Balanced size and repo count weighting
       github-stats-card top-langs -u octocat -o langs.svg \\
         --size-weight 0.5 --count-weight 0.5
+      
+      # Use weighting preset
+      github-stats-card top-langs -u octocat -o langs.svg \\
+        --weighting balanced
     """
     try:
+        # Resolve weighting preset if specified
+        final_size_weight = size_weight
+        final_count_weight = count_weight
+        
+        if weighting:
+            preset = WEIGHTING_PRESETS[weighting]
+            # Only use preset values if individual weights not specified
+            if size_weight is None:
+                final_size_weight = preset["size_weight"]
+            if count_weight is None:
+                final_count_weight = preset["count_weight"]
+        
+        # Apply defaults if still None
+        if final_size_weight is None:
+            final_size_weight = 1.0
+        if final_count_weight is None:
+            final_count_weight = 0.0
+        
         # Create fetch configuration
         fetch_config = LangsFetchConfig.from_cli_args(
             username=username,
             token=token,
             exclude_repo=exclude_repo,
-            size_weight=size_weight,
-            count_weight=count_weight,
+            size_weight=final_size_weight,
+            count_weight=final_count_weight,
         )
 
         # Fetch languages from GitHub
