@@ -30,7 +30,7 @@ TRANSLATIONS: dict[str, Translations] = {
         "statcard_prs_merged": "Total PRs Merged",
         "statcard_prs_merged_percentage": "PRs Merged",
         "statcard_issues": "Total Issues",
-        "statcard_contribs": "Contributed to (last year)",
+        "statcard_contribs": "Total Repositories",
         "statcard_reviews": "Total Reviews",
         "statcard_discussions_started": "Discussions Started",
         "statcard_discussions_answered": "Discussions Answered",

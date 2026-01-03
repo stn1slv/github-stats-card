@@ -81,6 +81,7 @@ def fetch_stats(
             }
             repositoriesContributedTo(
               first: 1
+              includeUserRepositories: true
               contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY]
             ) {
               totalCount
@@ -131,6 +132,7 @@ def fetch_stats(
             }
             repositoriesContributedTo(
               first: 1
+              includeUserRepositories: true
               contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY]
             ) {
               totalCount
@@ -276,6 +278,21 @@ def fetch_stats(
             # If REST API fails, use GraphQL data
             pass
 
+    # Use REST API to get accurate issue count (includes issues in repos user doesn't own)
+    total_issues = user["openIssues"]["totalCount"] + user["closedIssues"]["totalCount"]
+    try:
+        issues_response = requests.get(
+            f"https://api.github.com/search/issues?q=author:{username}+type:issue",
+            headers=headers,
+            timeout=API_TIMEOUT,
+        )
+        issues_response.raise_for_status()
+        issues_data = issues_response.json()
+        total_issues = issues_data.get("total_count", total_issues)
+    except requests.exceptions.RequestException:
+        # If REST API fails, use GraphQL data
+        pass
+
     # Fetch additional stats if requested
     discussions_started = 0
     discussions_answered = 0
@@ -319,7 +336,7 @@ def fetch_stats(
         "totalCommits": total_commits,
         "totalPRs": user["pullRequests"]["totalCount"],
         "mergedPRs": user["mergedPullRequests"]["totalCount"],
-        "totalIssues": (user["openIssues"]["totalCount"] + user["closedIssues"]["totalCount"]),
+        "totalIssues": total_issues,
         "totalStars": total_stars,
         "contributedTo": user["repositoriesContributedTo"]["totalCount"],
         "followers": user["followers"]["totalCount"],
