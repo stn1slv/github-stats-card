@@ -35,7 +35,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Dark theme (vue-dark)
-          github-stats-card \
+          github-stats-card stats \
             --username ${{ github.repository_owner }} \
             --output img/github-stats-dark.svg \
             --theme vue-dark \
@@ -45,7 +45,7 @@ jobs:
             --include-all-commits
           
           # Light theme (vue)
-          github-stats-card \
+          github-stats-card stats \
             --username ${{ github.repository_owner }} \
             --output img/github-stats-light.svg \
             --theme vue \
@@ -55,7 +55,7 @@ jobs:
             --include-all-commits
           
           # Default theme with rank
-          github-stats-card \
+          github-stats-card stats \
             --username ${{ github.repository_owner }} \
             --output img/github-stats.svg \
             --show-icons

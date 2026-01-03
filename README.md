@@ -484,12 +484,12 @@ You can use the library programmatically in your Python projects:
 ### Stats Card
 
 ```python
-from src.fetcher import fetch_user_stats
+from src.fetcher import fetch_stats
 from src.stats_card import render_stats_card
 from src.config import StatsCardConfig
 
 # Fetch stats
-stats = fetch_user_stats(username="octocat", token="ghp_your_token")
+stats = fetch_stats(username="octocat", token="ghp_your_token")
 
 # Create configuration
 config = StatsCardConfig(
