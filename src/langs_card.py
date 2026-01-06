@@ -132,9 +132,9 @@ def render_normal_layout(
           <text data-testid="lang-name" x="2" y="15" class="lang-name">{encode_html(lang.name)}</text>
           <text x="{width - padding_right + 10}" y="34" class="lang-name">{display_value}</text>
           <svg width="{progress_width}" x="0" y="25">
-            <rect rx="5" ry="5" x="0" y="0" width="{progress_width}" height="10" fill="#ddd"></rect>
+            <rect rx="5" ry="5" x="0" y="0" width="{progress_width}" height="8" fill="#ddd"></rect>
             <svg data-testid="lang-progress" width="{percentage}%">
-              <rect height="10" fill="{lang.color}" rx="5" ry="5" x="0" y="0"
+              <rect height="8" fill="{lang.color}" rx="5" ry="5" x="0" y="0"
                     class="lang-progress" style="animation-delay: {stagger_delay + 300}ms;" />
             </svg>
           </svg>
@@ -176,17 +176,17 @@ def render_compact_layout(
           x="{progress_offset}"
           y="0"
           width="{bar_width}"
-          height="10"
+          height="8"
           fill="{lang.color}"
         />
       '''
             )
-            progress_offset += bar_width
+            progress_offset += percentage
 
         progress_bar = f'''
   
       <mask id="rect-mask">
-          <rect x="0" y="0" width="{offset_width}" height="10" fill="white" rx="5"/>
+          <rect x="0" y="0" width="{offset_width}" height="8" fill="white" rx="5"/>
         </mask>
         {"".join(bars)}
       '''
@@ -198,7 +198,7 @@ def render_compact_layout(
 
     # Calculate the max name width for alignment (approximate based on column width)
     # Use wider column width for 467px width layout
-    name_max_width = 115 if width >= 467 else 90
+    name_max_width = 180 if width >= 467 else 130
 
     def render_lang_item(lang: Language, index: int) -> str:
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
@@ -234,15 +234,9 @@ def render_compact_layout(
 
     y_offset = 0 if hide_progress else 25
 
-    # Calculate centered positions for two columns
-    # Total content width = 2 columns * column_width, centered in (width - 2*padding)
-    available_width = width - 2 * CARD_PADDING
-    total_columns_width = column_width * 2
-    center_offset = (available_width - total_columns_width) // 2
-
     return f'''
     {progress_bar}
-    <g transform="translate({center_offset}, {y_offset})">
+    <g transform="translate(0, {y_offset})">
       <g transform="translate(0, 0)">{col1}</g><g transform="translate({column_width}, 0)">{col2}</g>
     </g>
   '''
@@ -429,7 +423,7 @@ def render_top_languages(
 
     # Calculate height based on layout
     if config.layout == "compact" or config.hide_progress:
-        height = 90 + ((len(langs) + 1) // 2) * 25
+        height = 80 + ((len(langs) + 1) // 2) * 25
         if config.hide_progress:
             height -= 25
     elif config.layout == "donut":
@@ -441,6 +435,10 @@ def render_top_languages(
         height = 300 + ((len(langs) + 1) // 2) * 25
     else:  # normal
         height = 45 + (len(langs) + 1) * 40
+    
+    # Add 30px extra height when title is shown (55px offset vs 25px)
+    if not config.hide_title:
+        height += 30
 
     # Get theme colors
     colors = get_card_colors(
@@ -509,15 +507,6 @@ def render_top_languages(
     @keyframes fadeInAnimation {
       from { opacity: 0; }
       to { opacity: 1; }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .stagger {
-        animation: none;
-        opacity: 1;
-      }
-      .lang-progress {
-        animation: none;
-      }
     }
     '''
 

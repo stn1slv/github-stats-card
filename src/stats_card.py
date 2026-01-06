@@ -212,6 +212,10 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
     # Reference: 165 height for 5 stats with no title
     # That's 5*25 = 125 + 40 = 165
     card_height = (num_stats * config.line_height) + STATS_CARD_BASE_HEIGHT
+    
+    # Add 30px extra height when title is shown (55px offset vs 25px)
+    if not config.hide_title:
+        card_height += 30
 
     # Use provided width or default to 467 (matches reference)
     final_width = config.card_width or 467
