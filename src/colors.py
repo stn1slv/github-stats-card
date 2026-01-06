@@ -113,9 +113,10 @@ def get_card_colors(
             border_color or selected_theme.get("border_color", default_theme["border_color"]),
             f"#{default_theme['border_color']}",
         ),
-        "ringColor": ring_color
-        or selected_theme.get("ring_color")
-        or selected_theme.get("title_color"),
+        "ringColor": parse_color(
+            ring_color or selected_theme.get("ring_color") or selected_theme.get("title_color"),
+            f"#{default_theme['title_color']}",
+        ),
     }
 
 

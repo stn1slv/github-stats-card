@@ -78,3 +78,20 @@ def test_get_card_colors_gradient():
     colors = get_card_colors(bg_color="90,ff0000,00ff00")
     assert isinstance(colors["bgColor"], list)
     assert colors["bgColor"] == ["90", "ff0000", "00ff00"]
+
+
+def test_get_card_colors_ring_color_default():
+    """Test that ringColor is properly formatted with # prefix for default theme."""
+    colors = get_card_colors()
+    # Should fallback to title_color and have # prefix
+    assert colors["ringColor"] == "#2f80ed"
+    assert isinstance(colors["ringColor"], str)
+    assert colors["ringColor"].startswith("#")
+
+
+def test_get_card_colors_ring_color_custom():
+    """Test that custom ring color is properly formatted."""
+    colors = get_card_colors(ring_color="ff0000")
+    assert colors["ringColor"] == "#ff0000"
+    assert isinstance(colors["ringColor"], str)
+    assert colors["ringColor"].startswith("#")
