@@ -1,12 +1,11 @@
 """Top Languages card renderer with multiple layout styles."""
 
 import math
-from typing import Optional
 
-from .card import render_card
+from .base import render_card
 from .colors import get_card_colors
-from .config import LangsCardConfig
-from .constants import (
+from ..core.config import LangsCardConfig
+from ..core.constants import (
     CARD_PADDING,
     DEFAULT_LANGS_CARD_WIDTH,
     DEFAULT_LANGS_COMPACT_WIDTH,
@@ -19,14 +18,14 @@ from .constants import (
     LANGS_PIE_RADIUS,
     ANIMATION_STAGGER_DELAY_MS,
 )
-from .langs_fetcher import Language
-from .utils import clamp_value, encode_html
+from ..github.langs_fetcher import Language
+from ..core.utils import clamp_value, encode_html
 
 
 def trim_top_languages(
     top_langs: dict[str, Language],
     langs_count: int,
-    hide: Optional[list[str]] = None,
+    hide: list[str] | None = None,
 ) -> tuple[list[Language], int]:
     """
     Trim languages to specified count while hiding certain languages.
@@ -41,7 +40,7 @@ def trim_top_languages(
     """
     hide = hide or []
     langs_to_hide = {lang.lower().strip() for lang in hide}
-    langs_count = clamp_value(int(langs_count), 1, MAXIMUM_LANGS_COUNT)
+    langs_count = int(clamp_value(int(langs_count), 1, MAXIMUM_LANGS_COUNT))
 
     # Filter and sort
     langs = [
@@ -162,7 +161,7 @@ def render_compact_layout(
     # Progress bar (stacked colors)
     progress_bar = ""
     if not hide_progress:
-        progress_offset = 0
+        progress_offset = 0.0
         bars = []
         for lang in langs:
             percentage = (lang.size / total_size) * offset_width if total_size > 0 else 0
@@ -256,7 +255,7 @@ def render_donut_layout(
 
     # Generate donut segments
     segments = []
-    offset = 0
+    offset = 0.0
 
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
@@ -319,7 +318,7 @@ def render_pie_layout(
 
     # Generate pie slices
     slices = []
-    current_angle = -90  # Start from top
+    current_angle = -90.0  # Start from top
 
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
@@ -391,11 +390,6 @@ def render_top_languages(
 
     Returns:
         SVG string
-
-    Examples:
-        >>> from .config import LangsCardConfig
-        >>> config = LangsCardConfig(layout="compact", theme="dark")
-        >>> svg = render_top_languages(langs, config)
     """
     # Validate layout
     valid_layouts = ["normal", "compact", "donut", "donut-vertical", "pie"]
@@ -459,7 +453,7 @@ def render_top_languages(
     # Render layout
     if len(langs) == 0:
         height = 90
-        final_layout = f'''
+        final_layout = '''
         <text x="25" y="50" class="lang-name">No languages data available</text>
         '''
     elif config.layout == "pie":

@@ -1,9 +1,11 @@
 """Stats card SVG renderer with all customization options."""
 
-from .card import render_card
+from typing import Any
+
+from .base import render_card
 from .colors import get_card_colors
-from .config import StatsCardConfig
-from .constants import (
+from ..core.config import StatsCardConfig
+from ..core.constants import (
     ANIMATION_INITIAL_DELAY_MS,
     ANIMATION_STAGGER_DELAY_MS,
     RANK_CIRCLE_X_OFFSET,
@@ -13,11 +15,68 @@ from .constants import (
     STAT_VALUE_X_POSITION,
     STATS_CARD_BASE_HEIGHT,
 )
-from .fetcher import UserStats
-from .i18n import get_translation
+from ..github.fetcher import UserStats
+from ..core.i18n import get_translation
 from .icons import get_icon_svg
-from .rank import calculate_rank
-from .utils import encode_html, k_formatter
+from ..github.rank import calculate_rank
+from ..core.utils import encode_html, k_formatter
+
+
+def _get_stat_definitions(stats: UserStats, locale: str) -> dict[str, dict[str, Any]]:
+    """Get all available stat definitions."""
+    return {
+        "stars": {
+            "label": get_translation("statcard_totalstars", locale),
+            "value": stats["totalStars"],
+            "icon": "star",
+        },
+        "commits": {
+            "label": get_translation("statcard_commits", locale),
+            "value": stats["totalCommits"],
+            "icon": "commits",
+        },
+        "prs": {
+            "label": get_translation("statcard_prs", locale),
+            "value": stats["totalPRs"],
+            "icon": "prs",
+        },
+        "prs_merged": {
+            "label": get_translation("statcard_prs_merged", locale),
+            "value": stats["mergedPRs"],
+            "icon": "prs_merged",
+        },
+        "prs_merged_percentage": {
+            "label": get_translation("statcard_prs_merged_percentage", locale),
+            "value": f"{(stats['mergedPRs'] / stats['totalPRs'] * 100) if stats['totalPRs'] > 0 else 0:.1f}%",
+            "icon": "prs_merged",
+            "skip_format": True,
+        },
+        "issues": {
+            "label": get_translation("statcard_issues", locale),
+            "value": stats["totalIssues"],
+            "icon": "issues",
+        },
+        "contribs": {
+            "label": get_translation("statcard_contribs", locale),
+            "value": stats["contributedTo"],
+            "icon": "contribs",
+        },
+        "reviews": {
+            "label": get_translation("statcard_reviews", locale),
+            "value": stats["totalReviews"],
+            "icon": "reviews",
+        },
+        "discussions_started": {
+            "label": get_translation("statcard_discussions_started", locale),
+            "value": stats["discussionsStarted"],
+            "icon": "discussions_started",
+        },
+        "discussions_answered": {
+            "label": get_translation("statcard_discussions_answered", locale),
+            "value": stats["discussionsAnswered"],
+            "icon": "discussions_answered",
+        },
+    }
 
 
 def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
@@ -30,11 +89,6 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
 
     Returns:
         Complete SVG markup as string
-
-    Examples:
-        >>> from .config import StatsCardConfig
-        >>> config = StatsCardConfig(theme="dark", show_icons=True)
-        >>> svg = render_stats_card(stats, config)
     """
     # Get resolved colors
     colors = get_card_colors(
@@ -64,71 +118,13 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
     )
 
     # Build stat items
-    stat_items = []
-
-    # Define available stats
-    all_stats = {
-        "stars": {
-            "label": get_translation("statcard_totalstars", config.locale),
-            "value": stats["totalStars"],
-            "icon": "star",
-        },
-        "commits": {
-            "label": get_translation("statcard_commits", config.locale),
-            "value": stats["totalCommits"],
-            "icon": "commits",
-        },
-        "prs": {
-            "label": get_translation("statcard_prs", config.locale),
-            "value": stats["totalPRs"],
-            "icon": "prs",
-        },
-        "prs_merged": {
-            "label": get_translation("statcard_prs_merged", config.locale),
-            "value": stats["mergedPRs"],
-            "icon": "prs_merged",
-        },
-        "prs_merged_percentage": {
-            "label": get_translation("statcard_prs_merged_percentage", config.locale),
-            "value": f"{(stats['mergedPRs'] / stats['totalPRs'] * 100) if stats['totalPRs'] > 0 else 0:.1f}%",
-            "icon": "prs_merged",
-            "skip_format": True,
-        },
-        "issues": {
-            "label": get_translation("statcard_issues", config.locale),
-            "value": stats["totalIssues"],
-            "icon": "issues",
-        },
-        "contribs": {
-            "label": get_translation("statcard_contribs", config.locale),
-            "value": stats["contributedTo"],
-            "icon": "contribs",
-        },
-        "reviews": {
-            "label": get_translation("statcard_reviews", config.locale),
-            "value": stats["totalReviews"],
-            "icon": "reviews",
-        },
-        "discussions_started": {
-            "label": get_translation("statcard_discussions_started", config.locale),
-            "value": stats["discussionsStarted"],
-            "icon": "discussions_started",
-        },
-        "discussions_answered": {
-            "label": get_translation("statcard_discussions_answered", config.locale),
-            "value": stats["discussionsAnswered"],
-            "icon": "discussions_answered",
-        },
-    }
+    all_stats = _get_stat_definitions(stats, config.locale)
 
     # Default stats to show
     default_stats = ["stars", "commits", "prs", "issues", "contribs"]
 
     # Determine which stats to display
-    stats_to_show = []
-    for stat_key in default_stats:
-        if stat_key not in config.hide:
-            stats_to_show.append(stat_key)
+    stats_to_show = [s for s in default_stats if s not in config.hide]
 
     # Add explicitly requested stats
     for stat_key in config.show:
@@ -136,6 +132,7 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
             stats_to_show.append(stat_key)
 
     # Build stat items SVG
+    stat_items = []
     for i, stat_key in enumerate(stats_to_show):
         stat = all_stats.get(stat_key)
         if not stat:
@@ -147,10 +144,7 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
         # Format value
         if not stat.get("skip_format"):
             if config.number_format == "short":
-                if config.number_precision is not None:
-                    formatted_value = k_formatter(int(value), config.number_precision)
-                else:
-                    formatted_value = k_formatter(int(value))
+                formatted_value = k_formatter(int(value), config.number_precision)
             else:
                 formatted_value = f"{int(value):,}"
         else:
@@ -160,14 +154,14 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
         icon_svg = ""
         label_x = STAT_LABEL_X_BASE
         if config.show_icons:
-            icon_svg = get_icon_svg(stat["icon"], colors["iconColor"])
+            icon_svg = get_icon_svg(stat["icon"], colors["iconColor"])  # type: ignore
             label_x = STAT_LABEL_X_WITH_ICON
 
         # Animation delay starts at 450ms and increments by 150ms
         delay = ANIMATION_INITIAL_DELAY_MS + (i * ANIMATION_STAGGER_DELAY_MS)
 
         # Calculate value position (right-aligned)
-        value_x = STAT_VALUE_X_POSITION  # Match reference position
+        value_x = STAT_VALUE_X_POSITION
 
         bold_class = "bold" if config.text_bold else ""
 
@@ -209,8 +203,6 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
 
     # Calculate card height to match reference
     num_stats = len(stat_items)
-    # Reference: 165 height for 5 stats with no title
-    # That's 5*25 = 125 + 40 = 165
     card_height = (num_stats * config.line_height) + STATS_CARD_BASE_HEIGHT
     
     # Add 30px extra height when title is shown (55px offset vs 25px)

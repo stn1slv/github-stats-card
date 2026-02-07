@@ -4,7 +4,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-59%20passed-success.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-67%20passed-success.svg)](#testing)
 
 ## Features
 
@@ -484,9 +484,9 @@ You can use the library programmatically in your Python projects:
 ### Stats Card
 
 ```python
-from src.fetcher import fetch_stats
-from src.stats_card import render_stats_card
-from src.config import StatsCardConfig
+from src.github.fetcher import fetch_stats
+from src.rendering.stats import render_stats_card
+from src.core.config import StatsCardConfig
 
 # Fetch stats
 stats = fetch_stats(username="octocat", token="ghp_your_token")
@@ -510,9 +510,9 @@ with open("stats.svg", "w") as f:
 ### Top Languages Card
 
 ```python
-from src.langs_fetcher import fetch_top_languages
-from src.langs_card import render_top_languages
-from src.config import LangsCardConfig
+from src.github.langs_fetcher import fetch_top_languages
+from src.rendering.langs import render_top_languages
+from src.core.config import LangsCardConfig
 
 # Fetch language stats with balanced weighting
 langs = fetch_top_languages(
@@ -568,7 +568,7 @@ All configuration is done through dataclasses:
 You can also create configurations from CLI-style arguments:
 
 ```python
-from src.config import StatsCardConfig
+from src.core.config import StatsCardConfig
 
 # From keyword arguments (like CLI options)
 config = StatsCardConfig.from_cli_args(
@@ -582,28 +582,32 @@ config = StatsCardConfig.from_cli_args(
 
 ## Architecture
 
-The project is organized into focused modules:
+The project is organized into focused sub-packages:
 
-**Core:**
-- `cli.py` - Command-line interface with Click command group
-- `config.py` - Configuration dataclasses (StatsCardConfig, LangsCardConfig)
-- `card.py` - Base SVG card renderer
-- `themes.py` - Theme definitions (50+ themes)
-- `colors.py` - Color parsing and utilities
-- `utils.py` - Utility functions
+**Core (`src/core/`):**
+- `config.py` - Centralized configuration and CLI parsing logic
 - `constants.py` - Centralized constants and magic numbers
 - `exceptions.py` - Exception hierarchy
+- `i18n.py` - Internationalization support
+- `utils.py` - Shared utility functions
 
-**Stats Card:**
-- `fetcher.py` - GitHub GraphQL/REST API client for user stats
-- `rank.py` - Rank calculation algorithm
-- `stats_card.py` - Stats card SVG renderer
+**GitHub (`src/github/`):**
+- `client.py` - Authenticated GitHub API client (REST/GraphQL)
+- `fetcher.py` - GitHub user statistics retrieval
+- `langs_fetcher.py` - GitHub language statistics retrieval
+- `rank.py` - User rank calculation algorithm
+
+**Rendering (`src/rendering/`):**
+- `base.py` - Base SVG card "envelope" and styling
+- `stats.py` - Stats card SVG renderer
+- `langs.py` - Top languages card SVG renderer
 - `icons.py` - SVG icon definitions
-- `i18n.py` - Internationalization
+- `themes.py` - Theme definitions (50+ themes)
+- `colors.py` - Color parsing and utilities
 
-**Top Languages Card:**
-- `langs_fetcher.py` - GitHub GraphQL API client for language stats
-- `langs_card.py` - Top languages card SVG renderer (5 layouts)
+**CLI (`src/`):**
+- `cli.py` - Command-line interface orchestration
+- `__main__.py` - Python module entry point
 
 ## Credits
 

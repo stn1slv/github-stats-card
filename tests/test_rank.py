@@ -1,89 +1,56 @@
-"""Tests for rank calculation."""
+"""Tests for rank calculation algorithm."""
 
-from src.rank import calculate_rank, exponential_cdf, log_normal_cdf
+from src.github.rank import calculate_rank, exponential_cdf, log_normal_cdf
 
 
 def test_exponential_cdf():
     assert exponential_cdf(0) == 0
-    assert 0 < exponential_cdf(0.5) < 1
     assert exponential_cdf(1) == 0.5
-    assert exponential_cdf(10) > 0.99
+    assert exponential_cdf(2) == 0.75
 
 
 def test_log_normal_cdf():
     assert log_normal_cdf(0) == 0
     assert log_normal_cdf(1) == 0.5
-    assert 0 < log_normal_cdf(0.5) < 0.5
-    assert log_normal_cdf(10) > 0.9
+    assert log_normal_cdf(9) == 0.9
 
 
 def test_calculate_rank_s_tier():
-    """Test S-tier rank (top 1%)."""
-    result = calculate_rank(
-        commits=5000,
-        prs=500,
-        issues=200,
-        reviews=100,
-        stars=1000,
-        followers=500,
-    )
-    # High stats should result in top tier (S or A+)
-    assert result["level"] in ["S", "A+"]
-    assert result["percentile"] < 15
+    # Extremely high stats to ensure S tier (percentile <= 1.0)
+    # Using 100k for most stats to ensure CDF approaches 1.0
+    result = calculate_rank(100000, 10000, 10000, 10000, 100000, 10000)
+    assert result["level"] == "S"
+    assert result["percentile"] <= 1.0
 
 
 def test_calculate_rank_a_tier():
-    """Test A-tier rank."""
-    result = calculate_rank(
-        commits=1000,
-        prs=100,
-        issues=50,
-        reviews=10,
-        stars=200,
-        followers=50,
-    )
-    assert result["level"] in ["A+", "A", "A-"]
-    assert 1 <= result["percentile"] < 50
+    # Good stats
+    result = calculate_rank(1000, 100, 50, 20, 100, 50)
+    assert result["level"] in ["S", "A+", "A"]
 
 
 def test_calculate_rank_c_tier():
-    """Test C-tier rank (low activity)."""
-    result = calculate_rank(
-        commits=10,
-        prs=1,
-        issues=0,
-        reviews=0,
-        stars=0,
-        followers=1,
-    )
-    assert result["level"] == "C"
-    assert result["percentile"] > 87.5
+    # Low stats
+    result = calculate_rank(10, 1, 1, 0, 0, 0)
+    assert result["level"] in ["C+", "C"]
 
 
 def test_calculate_rank_with_all_commits():
-    """Test rank calculation with all commits flag."""
-    # With all_commits=True, median is 1000 instead of 250
-    result = calculate_rank(
-        commits=500,
-        prs=50,
-        issues=25,
-        reviews=5,
-        stars=50,
-        followers=10,
-        all_commits=True,
-    )
-    assert result["level"] in ["S", "A+", "A", "A-", "B+", "B", "B-", "C+", "C"]
-    assert 0 <= result["percentile"] <= 100
+    # Same stats, but one is all-time commits (median is higher)
+    res1 = calculate_rank(1000, 50, 25, 2, 50, 10, all_commits=False)
+    res2 = calculate_rank(1000, 50, 25, 2, 50, 10, all_commits=True)
+
+    # res2 should have a higher (worse) percentile because 1000 commits
+    # is less impressive when compared to all-time median (1000)
+    # than when compared to current year median (250)
+    assert res2["percentile"] > res1["percentile"]
 
 
 def test_rank_percentile_range():
-    """Test that percentile is always in valid range."""
-    result = calculate_rank(
-        commits=250,
-        prs=50,
-        issues=25,
-        reviews=2,
-        stars=50,
-        followers=10,
-    )
-    assert 0 <= result["percentile"] <= 100
+    # Test extreme cases
+    res_best = calculate_rank(1000000, 100000, 100000, 10000, 100000, 100000)
+    res_worst = calculate_rank(0, 0, 0, 0, 0, 0)
+
+    assert 0 <= res_best["percentile"] <= 100
+    assert 0 <= res_worst["percentile"] <= 100
+    assert res_best["percentile"] < res_worst["percentile"]

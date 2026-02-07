@@ -95,10 +95,10 @@ uv run mypy src
 
 ```bash
 # Test basic functionality
-uv run github-stats-card -u octocat -o test.svg
+uv run github-stats-card stats -u octocat -o test.svg
 
 # Test with different themes
-uv run github-stats-card -u octocat -o test.svg --theme dark --show-icons
+uv run github-stats-card stats -u octocat -o test.svg --theme dark --show-icons
 ```
 
 ## Project Structure
@@ -106,23 +106,27 @@ uv run github-stats-card -u octocat -o test.svg --theme dark --show-icons
 ```
 github-stats-card/
 ├── src/                      # Main package
-│   ├── __init__.py           # Package initialization
-│   ├── __main__.py           # Entry point for python -m
-│   ├── card.py               # Base SVG card renderer
+│   ├── core/                 # Shared foundational logic
+│   │   ├── config.py         # Configuration dataclasses
+│   │   ├── constants.py      # Centralized constants
+│   │   ├── exceptions.py     # Exception hierarchy
+│   │   ├── i18n.py           # Internationalization
+│   │   └── utils.py          # Utility functions
+│   ├── github/               # GitHub-specific integration
+│   │   ├── client.py         # Authenticated API client
+│   │   ├── fetcher.py        # Statistics retrieval
+│   │   ├── langs_fetcher.py  # Language data retrieval
+│   │   └── rank.py           # User rank calculation
+│   ├── rendering/            # SVG generation and visual logic
+│   │   ├── base.py           # Base SVG card "envelope"
+│   │   ├── colors.py         # Color parsing and utilities
+│   │   ├── icons.py          # SVG icon definitions
+│   │   ├── langs.py          # Top languages card renderer
+│   │   ├── stats.py          # Stats card renderer
+│   │   └── themes.py         # Built-in color schemes
 │   ├── cli.py                # Command-line interface
-│   ├── config.py             # Configuration dataclasses
-│   ├── colors.py             # Color utilities
-│   ├── constants.py          # Centralized constants
-│   ├── exceptions.py         # Exception hierarchy
-│   ├── fetcher.py            # GitHub API client (stats)
-│   ├── langs_fetcher.py      # GitHub API client (languages)
-│   ├── i18n.py               # Internationalization
-│   ├── icons.py              # SVG icon definitions
-│   ├── langs_card.py         # Top languages card renderer
-│   ├── rank.py               # Rank calculation
-│   ├── stats_card.py         # Stats card renderer
-│   ├── themes.py             # Theme definitions
-│   └── utils.py              # Utility functions
+│   ├── __init__.py           # Package initialization
+│   └── __main__.py           # Entry point for python -m
 ├── tests/                    # Test suite
 │   ├── test_colors.py
 │   ├── test_langs_card.py
@@ -139,7 +143,7 @@ github-stats-card/
 
 ### Adding a New Theme
 
-1. Open `github_stats_card/themes.py`
+1. Open `src/rendering/themes.py`
 2. Add your theme to the `THEMES` dictionary:
 
    ```python
@@ -154,12 +158,12 @@ github-stats-card/
 3. Test it:
 
    ```bash
-   uv run github-stats-card -u octocat -o test.svg --theme my_theme
+   uv run github-stats-card stats -u octocat -o test.svg --theme my_theme
    ```
 
 ### Adding a New Icon
 
-1. Open `github_stats_card/icons.py`
+1. Open `src/rendering/icons.py`
 2. Find the SVG path from [Octicons](https://primer.style/octicons/)
 3. Add it to the `ICONS` dictionary:
 
@@ -169,74 +173,14 @@ github-stats-card/
 
 ### Adding a New Stat
 
-1. Update `src/fetcher.py` to fetch the new data from GitHub API
-2. Update `src/i18n.py` to add the translation key
-3. Update `src/stats_card.py` to include it in `all_stats` dictionary
+1. Update `src/github/fetcher.py` to fetch the new data from GitHub API
+2. Update `src/core/i18n.py` to add the translation key
+3. Update `src/rendering/stats.py` to include it in `_get_stat_definitions`
 4. Add tests in `tests/test_stats_card.py`
-
-Example:
-
-**Step 1: Update fetcher.py**
-
-```python
-# Add to GraphQL query
-query = """
-query($login: String!) {
-    user(login: $login) {
-        # ... existing fields
-        myNewStat
-    }
-}
-"""
-
-# Extract in fetch_user_stats function
-stats["myNewStat"] = user_data.get("myNewStat", 0)
-```
-
-**Step 2: Update i18n.py**
-
-```python
-TRANSLATIONS = {
-    "en": {
-        # ... existing translations
-        "statcard_mynewstat": "My New Stat",
-    },
-}
-```
-
-**Step 3: Update stats_card.py**
-
-```python
-# In render_stats_card function
-all_stats = {
-    # ... existing stats
-    "myNewStat": {
-        "label": get_translation("statcard_mynewstat", config.locale),
-        "value": stats.get("myNewStat", 0),
-        "icon": get_icon("star"),  # Choose appropriate icon
-    },
-}
-```
-
-**Step 4: Add tests**
-
-```python
-# In tests/test_stats_card.py
-def test_render_with_new_stat():
-    from src.config import StatsCardConfig
-    from src.stats_card import render_stats_card
-    
-    stats = {"myNewStat": 100, "name": "Test User"}
-    config = StatsCardConfig(show=["myNewStat"])
-    
-    svg = render_stats_card(stats, config)
-    assert "My New Stat" in svg
-    assert "100" in svg
-```
 
 ### Adding a Translation
 
-1. Open `github_stats_card/i18n.py`
+1. Open `src/core/i18n.py`
 2. Add a new locale to `TRANSLATIONS`:
 
    ```python
@@ -261,101 +205,26 @@ We follow conventional commits:
 - `test:` - Adding or updating tests
 - `chore:` - Maintenance tasks
 
-Examples:
-
-```bash
-git commit -m "feat: add new tokyonight theme"
-git commit -m "fix: correct rank calculation for edge case"
-git commit -m "docs: update installation instructions"
-```
-
 ### Pull Request Process
 
 1. **Create a branch**
-
-   ```bash
-   git checkout -b feature/my-new-feature
-   ```
-
 2. **Make your changes**
-
-   - Write code
-   - Add tests
-   - Update documentation
-
-3. **Run checks**
-
-   ```bash
-   pytest
-   black github_stats_card tests
-   ruff check github_stats_card tests
-   mypy github_stats_card
-   ```
-
-4. **Commit changes**
-
-   ```bash
-   git add .
-   git commit -m "feat: add my new feature"
-   ```
-
-5. **Push to your fork**
-
-   ```bash
-   git push origin feature/my-new-feature
-   ```
-
-6. **Create Pull Request**
-
-   - Go to GitHub
-   - Click "New Pull Request"
-   - Fill in the description
-   - Link any related issues
-
-### Pull Request Checklist
-
-- [ ] Code follows the project style (black, ruff)
-- [ ] All tests pass (`pytest`)
-- [ ] New features have tests
-- [ ] Documentation is updated
-- [ ] Commit messages follow conventions
-- [ ] No breaking changes (or documented)
-
-## Reporting Issues
-
-### Bug Reports
-
-Include:
-
-- Python version
-- Operating system
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Error messages/stack traces
-
-### Feature Requests
-
-Include:
-
-- Use case / motivation
-- Proposed solution
-- Alternative solutions considered
-- Additional context
+3. **Run checks** (`pytest`, `black`, `ruff`, `mypy`)
+4. **Commit and Push**
 
 ## Code Style
 
 ### Python
 
 - Follow PEP 8
-- Use type hints
+- Use modern type hints (Python 3.10+)
 - Maximum line length: 100 characters
 - Use docstrings for functions and classes
 
 Example:
 
 ```python
-from src.config import StatsCardConfig
+from src.core.config import StatsCardConfig
 
 def render_stats_card(stats: dict[str, Any], config: StatsCardConfig) -> str:
     """
@@ -367,9 +236,6 @@ def render_stats_card(stats: dict[str, Any], config: StatsCardConfig) -> str:
         
     Returns:
         SVG string representing the stats card
-        
-    Raises:
-        RenderError: If rendering fails
     """
     # Implementation
 ```
@@ -379,70 +245,16 @@ def render_stats_card(stats: dict[str, Any], config: StatsCardConfig) -> str:
 All rendering functions use configuration objects instead of individual parameters:
 
 ```python
-# ✅ New API (using config objects)
-from src.config import StatsCardConfig, LangsCardConfig
-from src.stats_card import render_stats_card
-from src.langs_card import render_top_languages
+from src.core.config import StatsCardConfig, LangsCardConfig
+from src.rendering.stats import render_stats_card
+from src.rendering.langs import render_top_languages
 
 stats_config = StatsCardConfig(theme="vue-dark", show_icons=True)
 svg = render_stats_card(stats, stats_config)
 
 langs_config = LangsCardConfig(layout="compact", langs_count=8)
 svg = render_top_languages(langs, langs_config)
-
-# ❌ Old API (deprecated - do not use)
-# svg = render_stats_card(stats, theme="vue-dark", show_icons=True, ...)
 ```
-
-Key modules using configuration objects:
-- `src/config.py` - Defines StatsCardConfig, LangsCardConfig, FetchConfig, LangsFetchConfig
-- `src/stats_card.py` - render_stats_card(stats, config)
-- `src/langs_card.py` - render_top_languages(langs, config)
-- `src/cli.py` - Uses Config.from_cli_args() to create config objects
-
-### Constants
-
-Use named constants from `src/constants.py` instead of magic numbers:
-
-```python
-# ✅ Correct
-from src.constants import CARD_DEFAULT_WIDTH, ANIMATION_INITIAL_DELAY_MS
-
-width = CARD_DEFAULT_WIDTH
-delay = ANIMATION_INITIAL_DELAY_MS
-
-# ❌ Wrong
-width = 495  # magic number
-delay = 450  # magic number
-```
-
-### Exceptions
-
-Use the exception hierarchy from `src/exceptions.py`:
-
-```python
-from src.exceptions import APIError, ValidationError, RenderError
-
-# Raise specific exceptions
-if not token:
-    raise ValidationError("GitHub token is required")
-
-if response.status_code != 200:
-    raise APIError(f"GitHub API returned {response.status_code}")
-```
-
-### Testing
-
-- Write tests for new features
-- Maintain or improve coverage
-- Use descriptive test names
-- Include docstrings for complex tests
-
-## Getting Help
-
-- Open an issue for questions
-- Join discussions in Pull Requests
-- Check existing issues/PRs first
 
 ## License
 

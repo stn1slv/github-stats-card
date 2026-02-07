@@ -1,9 +1,7 @@
 """Base SVG card renderer with common styling and structure."""
 
-from typing import Union
-
 from .colors import format_gradient
-from .constants import (
+from ..core.constants import (
     ANIMATION_FADE_DURATION_MS,
     ANIMATION_SCALE_DURATION_MS,
     FONT_FAMILY_HEADER,
@@ -16,7 +14,7 @@ from .constants import (
     FONT_WEIGHT_STAT,
     FONT_WEIGHT_STAT_BOLD,
 )
-from .utils import encode_html
+from ..core.utils import encode_html
 
 
 def render_card(
@@ -24,7 +22,7 @@ def render_card(
     body: str,
     width: int = 450,
     height: int = 200,
-    colors: Union[dict[str, Union[str, list[str]]], None] = None,
+    colors: dict[str, str | list[str]] | None = None,
     hide_title: bool = False,
     hide_border: bool = False,
     border_radius: float = 4.5,
@@ -70,6 +68,7 @@ def render_card(
 
     # CSS styles
     animation_css = ""
+    rank_text_animation = ""
     if not disable_animations:
         animation_css = f"""
         .stagger {{
@@ -94,13 +93,17 @@ def render_card(
           }}
         }}
         """
+        rank_text_animation = f"animation: scaleInAnimation {ANIMATION_SCALE_DURATION_MS / 1000}s ease-in-out forwards;"
 
     # Get ring color for rank circle CSS
-    ring_color = colors.get("ringColor") or title_color
-    if isinstance(ring_color, list):
-        ring_color = f"#{ring_color[1]}"
-    # Ensure ring color has # prefix
-    if not ring_color.startswith("#"):
+    ring_color_val = colors.get("ringColor") or title_color
+    if isinstance(ring_color_val, list):
+        ring_color = f"#{ring_color_val[1]}"
+    else:
+        ring_color = str(ring_color_val)
+        
+    # Ensure ring color has # prefix if it's a hex
+    if len(ring_color) in [3, 6, 8] and not ring_color.startswith("#"):
         ring_color = f"#{ring_color}"
 
     css = f"""
@@ -126,7 +129,7 @@ def render_card(
       .rank-text {{
         font: {FONT_WEIGHT_RANK} {FONT_SIZE_RANK}px {FONT_FAMILY_HEADER};
         fill: {text_color};
-        animation: scaleInAnimation {ANIMATION_SCALE_DURATION_MS / 1000}s ease-in-out forwards;
+        {rank_text_animation}
       }}
       .rank-circle-rim {{
         stroke: {ring_color};

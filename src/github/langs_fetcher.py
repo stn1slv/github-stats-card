@@ -1,11 +1,12 @@
 """GitHub API client for fetching language statistics."""
 
 from dataclasses import dataclass
-from typing import Union
 
-import requests
+import requests  # type: ignore
 
-from .constants import API_TIMEOUT, DEFAULT_LANG_COLOR, GRAPHQL_ENDPOINT
+from ..core.constants import DEFAULT_LANG_COLOR
+from ..core.exceptions import LanguageFetchError
+from .client import GitHubClient
 
 
 @dataclass
@@ -18,14 +19,10 @@ class Language:
     count: int  # number of repos using this language
 
 
-# Import LanguageFetchError from exceptions module for backwards compatibility
-from .exceptions import LanguageFetchError
-
-
 def fetch_top_languages(
     username: str,
     token: str,
-    exclude_repo: Union[list[str], None] = None,
+    exclude_repo: list[str] | None = None,
     size_weight: float = 1.0,
     count_weight: float = 0.0,
 ) -> dict[str, Language]:
@@ -45,6 +42,7 @@ def fetch_top_languages(
     Raises:
         LanguageFetchError: If API request fails or returns errors
     """
+    client = GitHubClient(token)
     exclude_repo = exclude_repo or []
 
     query = """
@@ -69,17 +67,7 @@ def fetch_top_languages(
     """
 
     try:
-        response = requests.post(
-            GRAPHQL_ENDPOINT,
-            json={"query": query, "variables": {"login": username}},
-            headers={
-                "Authorization": f"bearer {token}",
-                "Content-Type": "application/json",
-            },
-            timeout=API_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
+        data = client.graphql_query(query, {"login": username})
     except requests.RequestException as e:
         raise LanguageFetchError(f"Failed to fetch data from GitHub API: {e}") from e
 

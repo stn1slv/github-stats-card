@@ -1,6 +1,6 @@
 """Tests for utility functions."""
 
-from src.utils import k_formatter, clamp_value, encode_html
+from src.core.utils import k_formatter, clamp_value, encode_html, parse_list_arg
 
 
 def test_k_formatter_less_than_thousand():
@@ -38,3 +38,13 @@ def test_encode_html():
     assert encode_html("A & B") == "A &amp; B"
     assert encode_html('"quoted"') == "&quot;quoted&quot;"
     assert encode_html("'single'") == "&#39;single&#39;"
+
+
+def test_parse_list_arg():
+    assert parse_list_arg(None) == []
+    assert parse_list_arg("") == []
+    assert parse_list_arg("foo") == ["foo"]
+    assert parse_list_arg("foo,bar") == ["foo", "bar"]
+    assert parse_list_arg(" foo , bar ") == ["foo", "bar"]
+    assert parse_list_arg(["foo", "bar"]) == ["foo", "bar"]
+    assert parse_list_arg([" foo ", " bar "]) == ["foo", "bar"]

@@ -2,9 +2,15 @@
 
 import os
 import sys
-from typing import Union
 
 import click
+
+from .core.config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig
+from .core.exceptions import FetchError, LanguageFetchError
+from .github.fetcher import fetch_stats
+from .github.langs_fetcher import fetch_top_languages
+from .rendering.langs import render_top_languages
+from .rendering.stats import render_stats_card
 
 # Weighting presets for language ranking
 WEIGHTING_PRESETS = {
@@ -14,16 +20,9 @@ WEIGHTING_PRESETS = {
     "diversity": {"size_weight": 0.4, "count_weight": 0.6},
 }
 
-from .config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig
-from .exceptions import FetchError, LanguageFetchError
-from .fetcher import fetch_stats
-from .langs_fetcher import fetch_top_languages
-from .langs_card import render_top_languages
-from .stats_card import render_stats_card
-
 
 @click.group()
-def cli():
+def cli() -> None:
     """GitHub Stats Card Generator - Create beautiful SVG stats cards for your GitHub profile."""
     pass
 
@@ -181,22 +180,22 @@ def stats(
     hide_title: bool,
     hide_rank: bool,
     include_all_commits: bool,
-    commits_year: Union[int, None],
+    commits_year: int | None,
     hide: str,
     show: str,
-    title_color: Union[str, None],
-    text_color: Union[str, None],
-    icon_color: Union[str, None],
-    bg_color: Union[str, None],
-    border_color: Union[str, None],
-    ring_color: Union[str, None],
-    custom_title: Union[str, None],
+    title_color: str | None,
+    text_color: str | None,
+    icon_color: str | None,
+    bg_color: str | None,
+    border_color: str | None,
+    ring_color: str | None,
+    custom_title: str | None,
     locale: str,
-    card_width: Union[int, None],
+    card_width: int | None,
     line_height: int,
     border_radius: float,
     number_format: str,
-    number_precision: Union[int, None],
+    number_precision: int | None,
     rank_icon: str,
     disable_animations: bool,
     text_bold: bool,
@@ -422,18 +421,18 @@ def top_langs(
     hide_title: bool,
     hide_progress: bool,
     layout: str,
-    langs_count: Union[int, None],
+    langs_count: int | None,
     hide: str,
     exclude_repo: str,
-    weighting: Union[str, None],
-    size_weight: Union[float, None],
-    count_weight: Union[float, None],
-    card_width: Union[int, None],
-    title_color: Union[str, None],
-    text_color: Union[str, None],
-    bg_color: Union[str, None],
-    border_color: Union[str, None],
-    custom_title: Union[str, None],
+    weighting: str | None,
+    size_weight: float | None,
+    count_weight: float | None,
+    card_width: int | None,
+    title_color: str | None,
+    text_color: str | None,
+    bg_color: str | None,
+    border_color: str | None,
+    custom_title: str | None,
     border_radius: float,
     stats_format: str,
     disable_animations: bool,

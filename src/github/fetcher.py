@@ -1,10 +1,12 @@
 """GitHub API client for fetching user statistics."""
 
-from typing import TypedDict, Union
+from typing import TypedDict, Any
 
-import requests
+import requests  # type: ignore
 
-from .constants import API_BASE_URL, API_TIMEOUT, GRAPHQL_ENDPOINT
+from ..core.constants import API_BASE_URL
+from ..core.exceptions import FetchError
+from .client import GitHubClient
 
 
 class UserStats(TypedDict):
@@ -24,16 +26,12 @@ class UserStats(TypedDict):
     discussionsAnswered: int
 
 
-# Import FetchError from exceptions module for backwards compatibility
-from .exceptions import FetchError
-
-
 def fetch_stats(
     username: str,
     token: str,
     include_all_commits: bool = False,
-    commits_year: Union[int, None] = None,
-    show: Union[list[str], None] = None,
+    commits_year: int | None = None,
+    show: list[str] | None = None,
 ) -> UserStats:
     """
     Fetch GitHub user statistics via GraphQL and REST APIs.
@@ -50,14 +48,8 @@ def fetch_stats(
 
     Raises:
         FetchError: If API request fails
-
-    Examples:
-        >>> stats = fetch_stats("octocat", "ghp_xxxx")
-        >>> stats['name']
-        'The Octocat'
-        >>> stats['totalStars'] >= 0
-        True
     """
+    client = GitHubClient(token)
     show = show or []
 
     # Build date range for commits_year filter
@@ -68,6 +60,7 @@ def fetch_stats(
         to_date = f"{commits_year}-12-31T23:59:59Z"
 
     # GraphQL query with optional date range for commits
+    variables: dict[str, Any] = {"login": username}
     if commits_year is not None:
         query = """
         query userInfo($login: String!, $from: DateTime!, $to: DateTime!) {
@@ -118,7 +111,7 @@ def fetch_stats(
           }
         }
         """
-        variables = {"login": username, "from": from_date, "to": to_date}
+        variables.update({"from": from_date, "to": to_date})
     else:
         query = """
         query userInfo($login: String!) {
@@ -169,23 +162,10 @@ def fetch_stats(
           }
         }
         """
-        variables = {"login": username}
-
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-    }
 
     # Execute GraphQL query
     try:
-        response = requests.post(
-            GRAPHQL_ENDPOINT,
-            json={"query": query, "variables": variables},
-            headers=headers,
-            timeout=API_TIMEOUT,
-        )
-        response.raise_for_status()
-        data = response.json()
+        data = client.graphql_query(query, variables)
 
         if "errors" in data:
             error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
@@ -230,17 +210,9 @@ def fetch_stats(
         """
 
         try:
-            response = requests.post(
-                GRAPHQL_ENDPOINT,
-                json={
-                    "query": pagination_query,
-                    "variables": {"login": username, "after": end_cursor},
-                },
-                headers=headers,
-                timeout=API_TIMEOUT,
+            page_data = client.graphql_query(
+                pagination_query, {"login": username, "after": end_cursor}
             )
-            response.raise_for_status()
-            page_data = response.json()
 
             page_user = page_data.get("data", {}).get("user")
             if page_user:
@@ -262,16 +234,10 @@ def fetch_stats(
     if include_all_commits:
         # Use REST API to get all-time commit count
         try:
-            search_response = requests.get(
+            search_data = client.rest_get(
                 f"{API_BASE_URL}/search/commits?q=author:{username}",
-                headers={
-                    **headers,
-                    "Accept": "application/vnd.github.cloak-preview+json",
-                },
-                timeout=API_TIMEOUT,
+                headers={"Accept": "application/vnd.github.cloak-preview+json"},
             )
-            search_response.raise_for_status()
-            search_data = search_response.json()
             total_commits = search_data.get("total_count", total_commits)
         except requests.exceptions.RequestException:
             # If REST API fails, use GraphQL data
@@ -280,13 +246,7 @@ def fetch_stats(
     # Use REST API to get accurate issue count (includes issues in repos user doesn't own)
     total_issues = user["openIssues"]["totalCount"] + user["closedIssues"]["totalCount"]
     try:
-        issues_response = requests.get(
-            f"{API_BASE_URL}/search/issues?q=author:{username}+type:issue",
-            headers=headers,
-            timeout=API_TIMEOUT,
-        )
-        issues_response.raise_for_status()
-        issues_data = issues_response.json()
+        issues_data = client.rest_get(f"{API_BASE_URL}/search/issues?q=author:{username}+type:issue")
         total_issues = issues_data.get("total_count", total_issues)
     except requests.exceptions.RequestException:
         # If REST API fails, use GraphQL data
@@ -311,14 +271,7 @@ def fetch_stats(
         """
 
         try:
-            response = requests.post(
-                GRAPHQL_ENDPOINT,
-                json={"query": discussions_query, "variables": {"login": username}},
-                headers=headers,
-                timeout=API_TIMEOUT,
-            )
-            response.raise_for_status()
-            disc_data = response.json()
+            disc_data = client.graphql_query(discussions_query, {"login": username})
             disc_user = disc_data.get("data", {}).get("user", {})
 
             discussions_started = disc_user.get("repositoryDiscussions", {}).get("totalCount", 0)

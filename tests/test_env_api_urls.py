@@ -3,8 +3,6 @@
 import os
 from unittest import mock
 
-import pytest
-
 
 def test_default_api_urls():
     """Test that default GitHub.com URLs are used when env vars are not set."""
@@ -12,7 +10,7 @@ def test_default_api_urls():
     with mock.patch.dict(os.environ, {}, clear=True):
         # Need to reload the module to pick up environment changes
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -25,7 +23,7 @@ def test_custom_api_url_env_var():
     custom_api_url = "https://github.enterprise.com/api/v3"
     with mock.patch.dict(os.environ, {"GITHUB_API_URL": custom_api_url}, clear=True):
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -41,7 +39,7 @@ def test_custom_graphql_url_env_var():
         os.environ, {"GITHUB_GRAPHQL_URL": custom_graphql_url}, clear=True
     ):
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -64,7 +62,7 @@ def test_both_custom_env_vars():
         clear=True,
     ):
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -74,9 +72,15 @@ def test_both_custom_env_vars():
 
 def test_fetcher_uses_api_base_url():
     """Test that fetcher module correctly imports and would use API_BASE_URL."""
-    from src.fetcher import API_BASE_URL
+    # Reset environment to ensure default values
+    with mock.patch.dict(os.environ, {}, clear=True):
+        import importlib
+        from src.core import constants
+        from src.github import fetcher
 
-    # Should be imported from constants
-    from src.constants import API_BASE_URL as CONST_API_BASE_URL
+        # Reload both modules to pick up clean environment
+        importlib.reload(constants)
+        importlib.reload(fetcher)
 
-    assert API_BASE_URL == CONST_API_BASE_URL
+        # Now check that fetcher's API_BASE_URL matches constants
+        assert fetcher.API_BASE_URL == constants.API_BASE_URL
