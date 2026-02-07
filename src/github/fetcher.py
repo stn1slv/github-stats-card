@@ -3,10 +3,26 @@
 from typing import TypedDict, Any
 
 import requests  # type: ignore
+import base64
 
 from ..core.constants import API_BASE_URL
+from ..core.config import ContribFetchConfig
 from ..core.exceptions import FetchError
 from .client import GitHubClient
+
+
+class ContributorRepo(TypedDict):
+    """Contributor repository details."""
+
+    name: str  # owner/repo
+    stars: int
+    avatar_b64: str | None
+
+
+class ContributorStats(TypedDict):
+    """Contributor statistics."""
+
+    repos: list[ContributorRepo]
 
 
 class UserStats(TypedDict):
@@ -296,3 +312,105 @@ def fetch_stats(
         "discussionsStarted": discussions_started,
         "discussionsAnswered": discussions_answered,
     }
+
+
+def fetch_contributor_stats(config: ContribFetchConfig) -> ContributorStats:
+    """
+    Fetch contributor statistics (repos contributed to).
+
+    Args:
+        config: Fetch configuration
+
+    Returns:
+        Contributor statistics
+
+    Raises:
+        FetchError: If API request fails
+    """
+    client = GitHubClient(config.token)
+
+    # Fetch more than limit to account for filtering (owned repos, excluded repos)
+    # We fetch 100 which is a reasonable batch size
+    query = """
+    query userContribs($login: String!) {
+      user(login: $login) {
+        repositoriesContributedTo(
+          first: 100
+          includeUserRepositories: false
+          privacy: PUBLIC
+          contributionTypes: [COMMIT, ISSUE, PULL_REQUEST, REPOSITORY, PULL_REQUEST_REVIEW]
+        ) {
+          nodes {
+            nameWithOwner
+            isPrivate
+            stargazers {
+              totalCount
+            }
+            owner {
+              avatarUrl
+              login
+            }
+          }
+        }
+      }
+    }
+    """
+
+    try:
+        data = client.graphql_query(query, {"login": config.username})
+        
+        if "errors" in data:
+            error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
+            raise FetchError(f"GraphQL error: {error_msg}")
+
+        user = data.get("data", {}).get("user")
+        if not user:
+            raise FetchError(f"User '{config.username}' not found")
+
+        raw_repos = user.get("repositoriesContributedTo", {}).get("nodes", [])
+
+    except requests.exceptions.RequestException as e:
+        raise FetchError(f"Failed to fetch data from GitHub: {e}")
+
+    # Process and filter repositories
+    repos: list[dict[str, Any]] = []
+    
+    for repo in raw_repos:
+        # Skip if private (double check)
+        if repo.get("isPrivate"):
+            continue
+
+        full_name = repo["nameWithOwner"]
+        
+        # Skip if explicitly excluded
+        if full_name in config.exclude_repos:
+            continue
+            
+        repos.append({
+            "name": full_name,
+            "stars": repo["stargazers"]["totalCount"],
+            "avatar_url": repo["owner"]["avatarUrl"]
+        })
+
+    # Sort by stars descending
+    repos.sort(key=lambda r: r["stars"], reverse=True)
+
+    # Limit results
+    repos = repos[:config.limit]
+
+    # Fetch avatars
+    final_repos: list[ContributorRepo] = []
+    for repo in repos:
+        avatar_b64 = None
+        if repo["avatar_url"]:
+            image_data = client.fetch_image(repo["avatar_url"])
+            if image_data:
+                avatar_b64 = base64.b64encode(image_data).decode("utf-8")
+
+        final_repos.append({
+            "name": repo["name"],
+            "stars": repo["stars"],
+            "avatar_b64": avatar_b64
+        })
+
+    return {"repos": final_repos}

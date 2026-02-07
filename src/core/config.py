@@ -29,7 +29,7 @@ class BaseConfig:
         filtered = {k: v for k, v in kwargs.items() if k in valid_fields and v is not None}
 
         # Handle known list fields
-        for list_key in ["hide", "show", "exclude_repo"]:
+        for list_key in ["hide", "show", "exclude_repo", "exclude_repos"]:
             if list_key in filtered:
                 filtered[list_key] = parse_list_arg(filtered[list_key])
 
@@ -137,3 +137,40 @@ class LangsFetchConfig(BaseConfig):
     exclude_repo: list[str] = field(default_factory=list)
     size_weight: float = 1.0
     count_weight: float = 0.0
+
+
+@dataclass
+class ContribCardConfig(BaseConfig):
+    """Configuration for contributor card rendering."""
+
+    # Theme and colors
+    theme: str = "default"
+    title_color: str | None = None
+    text_color: str | None = None
+    bg_color: str | None = None
+    border_color: str | None = None
+
+    # Visibility options
+    hide_border: bool = False
+
+    # Layout options
+    card_width: int = 467
+    border_radius: float = 4.5
+    
+    # Display options
+    limit: int = 10
+    exclude_repos: list[str] = field(default_factory=list)
+    custom_title: str | None = None
+    
+    # Animation options
+    disable_animations: bool = False
+
+
+@dataclass
+class ContribFetchConfig(BaseConfig):
+    """Configuration for fetching contributor data."""
+
+    username: str
+    token: str
+    limit: int = 10
+    exclude_repos: list[str] = field(default_factory=list)

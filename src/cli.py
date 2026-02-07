@@ -5,12 +5,13 @@ import sys
 
 import click
 
-from .core.config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig
+from .core.config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig, ContribCardConfig, ContribFetchConfig
 from .core.exceptions import FetchError, LanguageFetchError
-from .github.fetcher import fetch_stats
+from .github.fetcher import fetch_stats, fetch_contributor_stats
 from .github.langs_fetcher import fetch_top_languages
 from .rendering.langs import render_top_languages
 from .rendering.stats import render_stats_card
+from .rendering.contrib import render_contrib_card
 
 # Weighting presets for language ranking
 WEIGHTING_PRESETS = {
@@ -544,6 +545,165 @@ def top_langs(
 
     except LanguageFetchError as e:
         click.echo(f"❌ Error fetching language data: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f"❌ Unexpected error: {e}", err=True)
+        sys.exit(1)
+
+
+@cli.command(name="contrib")
+@click.option(
+    "--username",
+    "-u",
+    required=True,
+    help="GitHub username",
+)
+@click.option(
+    "--token",
+    "-t",
+    envvar="GITHUB_TOKEN",
+    required=True,
+    help="GitHub Personal Access Token (or set GITHUB_TOKEN env var)",
+)
+@click.option(
+    "--output",
+    "-o",
+    required=True,
+    type=click.Path(),
+    help="Output SVG file path",
+)
+@click.option(
+    "--limit",
+    "-l",
+    type=int,
+    default=10,
+    help="Number of repositories to show (default: 10)",
+)
+@click.option(
+    "--exclude-repo",
+    default="",
+    help="Comma-separated repos to exclude",
+)
+@click.option(
+    "--theme",
+    default="default",
+    help="Theme name (default, dark, radical, etc.)",
+)
+@click.option(
+    "--hide-border",
+    is_flag=True,
+    help="Hide card border",
+)
+@click.option(
+    "--card-width",
+    type=int,
+    help="Card width in pixels (default: 467)",
+)
+@click.option(
+    "--title-color",
+    help="Custom title color (hex without #)",
+)
+@click.option(
+    "--text-color",
+    help="Custom text color (hex without #)",
+)
+@click.option(
+    "--bg-color",
+    help="Custom background color (hex without # or gradient)",
+)
+@click.option(
+    "--border-color",
+    help="Custom border color (hex without #)",
+)
+@click.option(
+    "--custom-title",
+    help="Custom card title text",
+)
+@click.option(
+    "--disable-animations",
+    is_flag=True,
+    help="Disable CSS animations",
+)
+def contrib(
+    username: str,
+    token: str,
+    output: str,
+    limit: int,
+    exclude_repo: str,
+    theme: str,
+    hide_border: bool,
+    card_width: int | None,
+    title_color: str | None,
+    text_color: str | None,
+    bg_color: str | None,
+    border_color: str | None,
+    custom_title: str | None,
+    disable_animations: bool,
+) -> None:
+    """
+    Generate Top Contributions Card SVG.
+    
+    This tool fetches repositories you have contributed to (excluding your own)
+    and generates an SVG card sorted by star count.
+    
+    Examples:
+    
+      # Basic usage
+      github-stats-card contrib -u octocat -o contrib.svg
+      
+      # Top 5 contributions with dark theme
+      github-stats-card contrib -u octocat -o contrib.svg \\
+        --theme vue-dark --limit 5
+      
+      # Exclude specific repositories
+      github-stats-card contrib -u octocat -o contrib.svg \\
+        --exclude-repo "facebook/react,microsoft/vscode"
+    """
+    try:
+        # Create fetch configuration
+        fetch_config = ContribFetchConfig.from_cli_args(
+            username=username,
+            token=token,
+            limit=limit,
+            exclude_repo=exclude_repo,
+        )
+
+        # Fetch stats from GitHub
+        click.echo(f"Fetching contribution stats for {username}...", err=True)
+        stats = fetch_contributor_stats(fetch_config)
+
+        click.echo(f"Found {len(stats['repos'])} repositories", err=True)
+
+        # Create rendering configuration
+        render_config = ContribCardConfig.from_cli_args(
+            limit=limit,
+            exclude_repo=exclude_repo,
+            theme=theme,
+            hide_border=hide_border,
+            card_width=card_width,
+            title_color=title_color,
+            text_color=text_color,
+            bg_color=bg_color,
+            border_color=border_color,
+            custom_title=custom_title,
+            disable_animations=disable_animations,
+        )
+
+        # Render SVG card
+        click.echo("Generating SVG card...", err=True)
+        svg = render_contrib_card(stats, render_config)
+
+        # Write to file
+        output_path = os.path.abspath(output)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(svg)
+
+        click.echo(f"✅ Generated {output_path}", err=True)
+
+    except FetchError as e:
+        click.echo(f"❌ Error fetching data: {e}", err=True)
         sys.exit(1)
     except Exception as e:
         click.echo(f"❌ Unexpected error: {e}", err=True)

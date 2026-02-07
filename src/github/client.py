@@ -65,3 +65,23 @@ class GitHubClient:
         )
         response.raise_for_status()
         return cast(dict[str, Any], response.json())
+
+    def fetch_image(self, url: str) -> bytes | None:
+        """
+        Fetch an image from a URL.
+
+        Args:
+            url: Image URL
+
+        Returns:
+            Image binary content or None if failed
+        """
+        try:
+            response = requests.get(
+                url,
+                timeout=API_TIMEOUT,
+            )
+            response.raise_for_status()
+            return cast(bytes, response.content)
+        except requests.exceptions.RequestException:
+            return None

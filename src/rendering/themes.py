@@ -438,3 +438,18 @@ THEMES: dict[str, ThemeColors] = {
         "bg_color": "ffffff00",
     },
 }
+
+
+def get_theme(name: str) -> dict[str, str]:
+    """
+    Get theme colors by name.
+
+    Args:
+        name: Theme name
+
+    Returns:
+        Dictionary with theme colors
+    """
+    if name not in THEMES:
+        return dict(THEMES["default"])  # type: ignore
+    return dict(THEMES[name])  # type: ignore
