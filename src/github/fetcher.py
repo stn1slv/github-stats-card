@@ -1,8 +1,8 @@
 """GitHub API client for fetching user statistics."""
 
-from typing import TypedDict
+from typing import TypedDict, Any
 
-import requests
+import requests  # type: ignore
 
 from ..core.constants import API_BASE_URL
 from ..core.exceptions import FetchError
@@ -60,7 +60,7 @@ def fetch_stats(
         to_date = f"{commits_year}-12-31T23:59:59Z"
 
     # GraphQL query with optional date range for commits
-    variables = {"login": username}
+    variables: dict[str, Any] = {"login": username}
     if commits_year is not None:
         query = """
         query userInfo($login: String!, $from: DateTime!, $to: DateTime!) {

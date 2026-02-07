@@ -40,7 +40,7 @@ def trim_top_languages(
     """
     hide = hide or []
     langs_to_hide = {lang.lower().strip() for lang in hide}
-    langs_count = clamp_value(int(langs_count), 1, MAXIMUM_LANGS_COUNT)
+    langs_count = int(clamp_value(int(langs_count), 1, MAXIMUM_LANGS_COUNT))
 
     # Filter and sort
     langs = [
@@ -161,7 +161,7 @@ def render_compact_layout(
     # Progress bar (stacked colors)
     progress_bar = ""
     if not hide_progress:
-        progress_offset = 0
+        progress_offset = 0.0
         bars = []
         for lang in langs:
             percentage = (lang.size / total_size) * offset_width if total_size > 0 else 0
@@ -255,7 +255,7 @@ def render_donut_layout(
 
     # Generate donut segments
     segments = []
-    offset = 0
+    offset = 0.0
 
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
@@ -318,7 +318,7 @@ def render_pie_layout(
 
     # Generate pie slices
     slices = []
-    current_angle = -90  # Start from top
+    current_angle = -90.0  # Start from top
 
     for index, lang in enumerate(langs):
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
@@ -453,7 +453,7 @@ def render_top_languages(
     # Render layout
     if len(langs) == 0:
         height = 90
-        final_layout = f'''
+        final_layout = '''
         <text x="25" y="50" class="lang-name">No languages data available</text>
         '''
     elif config.layout == "pie":

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-import requests
+import requests  # type: ignore
 
 from ..core.constants import DEFAULT_LANG_COLOR
 from ..core.exceptions import LanguageFetchError

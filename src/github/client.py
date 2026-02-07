@@ -1,8 +1,8 @@
 """GitHub API client for making authenticated requests."""
 
-from typing import Any
+from typing import Any, cast
 
-import requests
+import requests  # type: ignore
 
 from ..core.constants import API_TIMEOUT, GRAPHQL_ENDPOINT
 
@@ -38,7 +38,7 @@ class GitHubClient:
             timeout=API_TIMEOUT,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     def rest_get(self, url: str, headers: dict[str, str] | None = None) -> dict[str, Any]:
         """
@@ -64,4 +64,4 @@ class GitHubClient:
             timeout=API_TIMEOUT,
         )
         response.raise_for_status()
-        return response.json()
+        return cast(dict[str, Any], response.json())

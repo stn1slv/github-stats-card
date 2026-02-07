@@ -55,7 +55,7 @@ def get_translation(key: str, locale: str = "en", **kwargs: str) -> str:
         "octocat's GitHub Stats"
     """
     translations = TRANSLATIONS.get(locale, TRANSLATIONS["en"])
-    template = translations.get(key, key)  # type: ignore
+    template = str(translations.get(key, key))  # type: ignore
 
     if kwargs:
         try:

@@ -5,6 +5,13 @@ import sys
 
 import click
 
+from .core.config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig
+from .core.exceptions import FetchError, LanguageFetchError
+from .github.fetcher import fetch_stats
+from .github.langs_fetcher import fetch_top_languages
+from .rendering.langs import render_top_languages
+from .rendering.stats import render_stats_card
+
 # Weighting presets for language ranking
 WEIGHTING_PRESETS = {
     "size-only": {"size_weight": 1.0, "count_weight": 0.0},
@@ -13,16 +20,9 @@ WEIGHTING_PRESETS = {
     "diversity": {"size_weight": 0.4, "count_weight": 0.6},
 }
 
-from .core.config import FetchConfig, LangsFetchConfig, LangsCardConfig, StatsCardConfig
-from .core.exceptions import FetchError, LanguageFetchError
-from .github.fetcher import fetch_stats
-from .github.langs_fetcher import fetch_top_languages
-from .rendering.langs import render_top_languages
-from .rendering.stats import render_stats_card
-
 
 @click.group()
-def cli():
+def cli() -> None:
     """GitHub Stats Card Generator - Create beautiful SVG stats cards for your GitHub profile."""
     pass
 

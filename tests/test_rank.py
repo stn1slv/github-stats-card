@@ -16,8 +16,9 @@ def test_log_normal_cdf():
 
 
 def test_calculate_rank_s_tier():
-    # Very high stats to ensure S tier (percentile <= 1.0)
-    result = calculate_rank(10000, 1000, 500, 200, 10000, 1000)
+    # Extremely high stats to ensure S tier (percentile <= 1.0)
+    # Using 100k for most stats to ensure CDF approaches 1.0
+    result = calculate_rank(100000, 10000, 10000, 10000, 100000, 10000)
     assert result["level"] == "S"
     assert result["percentile"] <= 1.0
 

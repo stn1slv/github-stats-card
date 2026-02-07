@@ -3,8 +3,6 @@
 import os
 from unittest import mock
 
-import pytest
-
 
 def test_default_api_urls():
     """Test that default GitHub.com URLs are used when env vars are not set."""
