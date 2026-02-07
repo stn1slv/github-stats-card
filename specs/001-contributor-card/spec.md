@@ -9,14 +9,14 @@
 
 ### Session 2026-02-07
 - Q: How should the system identify which repositories a user has "contributed to"? → A: Option A - Standard (All types): Includes Commits, Pull Requests, Issues, and Reviews (matches GitHub profile).
-- Q: Besides the repository name, should the card display any other information about the user's specific contribution to that repository? → A: Option A - Stars Only: Just the repository name and its total star count.
+- Q: Besides the repository name, should the card display any other information about the user's specific contribution to that repository? → A: Use existing calculate_rank function to show user's rank level for that repository.
 - Q: Should the card include contributions to private repositories if the provided GITHUB_TOKEN has access to them? → A: Option A - Public Only: Filter for contributions to public repositories only.
 - Q: Should the system include repositories owned by organizations that the user is a member of? → A: Option A - Include All: Include any repository not owned by the user personally (including user's orgs).
 - Q: What should be the default title displayed at the top of the contributor card? → A: Option A - "Top Contributions"
 - Q: Where should the "repository favicon" be sourced from? → A: Option A - Owner Avatar: Use the repository owner's (User/Org) avatar image.
 - Q: How should the owner avatar be styled within the repository list? → A: Option A - Circular: Rounded into a circle.
 - Q: Where should the owner avatar be placed relative to the repository name? → A: Option A - Left of name: Avatar icon appears to the left of the repository name.
-- Q: How should the repository name be displayed? → A: Option A - Owner/Repo: Show both owner and repository name (e.g., facebook/react).
+- Q: How should the repository name be displayed? → A: Repository name only, without owner/organization prefix.
 - Q: What should be the dimensions of the circular owner avatar? → A: Option A - 20px x 20px (Standard small icon)
 - Q: How should the repository owner avatars be included in the SVG? → A: Option A - Embedded Base64: Download the avatar and embed it directly in the SVG as a data URI.
 - Q: Should we impose a hard limit on how many avatars we attempt to download? → A: Option A - No Limit: Fetch avatars for all repositories up to the user-defined --limit.
@@ -37,7 +37,7 @@ As a GitHub user, I want to generate a card showing the most popular repositorie
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid GitHub username and token, **When** `uv run github-stats-card contrib -u <username> -o contrib.svg`, **Then** a file `contrib.svg` is created containing a list of repositories not owned by the user, sorted by star count.
+1. **Given** a valid GitHub username and token, **When** `uv run github-stats-card contrib -u <username> -o contrib.svg`, **Then** a file `contrib.svg` is created containing a list of repositories not owned by the user, sorted by star count, and displaying the user's rank level for each.
 2. **Given** an invalid token, **When** the command is run, **Then** an authentication error is displayed.
 
 ---
@@ -96,13 +96,13 @@ As a user, I want clear feedback if I have no contributions or if I request more
   - `exclude_repos`: set[str]
 
 ### Functional Requirements
-- **FR-001**: System MUST fetch repositories where the user is a contributor (including Commits, Pull Requests, Issues, and Reviews).
+- **FR-001**: System MUST fetch repositories where the user is a contributor (including Commits, Pull Requests, Issues, and Reviews) across the last 5 years using `contributionsCollection`.
 - **FR-002**: System MUST filter out repositories owned by the user.
 - **FR-003**: System MUST filter for public repositories only.
 - **FR-004**: System MUST sort the filtered repositories by star count (descending).
 - **FR-005**: System MUST limit the result to the top X repositories specified by the user (default 10).
 - **FR-006**: System MUST render the list of repositories as an SVG.
-- **FR-007**: The SVG MUST display the repository name in "owner/repo" format and its star count.
+- **FR-007**: The SVG MUST display the repository name (without owner prefix) and the user's calculated rank level for that repository.
 - **FR-008**: The default card title MUST be "Top Contributions".
 - **FR-009**: System MUST fetch and display the repository owner's avatar as a visual indicator for each repository.
 - **FR-010**: Avatars MUST be embedded directly in the SVG as Base64-encoded Data URIs to ensure self-contained rendering.
@@ -111,7 +111,7 @@ As a user, I want clear feedback if I have no contributions or if I request more
 ### Visual/Output Requirements
 - **VR-001**: SVG MUST match the visual style (fonts, padding, border radius) of existing cards, with a default width of 467px.
 - **VR-002**: Colors MUST respect the active theme.
-- **VR-003**: Layout MUST accommodate the list of repositories cleanly, using a standard row height of 30px (e.g., rows with owner avatar on the left, followed by repo name, and stars on the right).
+- **VR-003**: Layout MUST accommodate the list of repositories cleanly, using a standard row height of 30px (e.g., rows with owner avatar on the left, followed by repo name, and user rank level on the right).
 - **VR-004**: Owner avatars MUST be rendered as circular images with dimensions of 20px x 20px.
 
 ## Success Criteria *(mandatory)*

@@ -9,36 +9,85 @@ from src.core.exceptions import FetchError
 
 @pytest.fixture
 def mock_client():
-    with patch("src.github.fetcher.GitHubClient") as MockClient:
+    with patch("src.github.fetcher.GitHubClient") as MockClient, \
+         patch("src.github.fetcher.fetch_stats") as mock_fetch_stats:
+        
         client_instance = MockClient.return_value
         client_instance.fetch_image.return_value = b"fake_image_data"
+        
+        mock_fetch_stats.return_value = {
+            "totalCommits": 1000,
+            "totalPRs": 100,
+            "totalIssues": 50,
+            "totalReviews": 20,
+            "followers": 10
+        }
+        
         yield client_instance
 
 
-def test_fetch_contributor_stats_success(mock_client):
-    """Test successful fetching of contributor stats."""
-    mock_client.graphql_query.return_value = {
+def setup_mock_response(mock_client, repos_data):
+    """Helper to set up the two-step GraphQL query mock."""
+    
+    # 1. Years response
+    years_response = {
         "data": {
             "user": {
-                "repositoriesContributedTo": {
-                    "nodes": [
-                        {
-                            "nameWithOwner": "owner/repo1",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 100},
-                            "owner": {"avatarUrl": "http://avatar1", "login": "owner"}
-                        },
-                        {
-                            "nameWithOwner": "owner/repo2",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 50},
-                            "owner": {"avatarUrl": "http://avatar2", "login": "owner"}
-                        }
-                    ]
+                "contributionsCollection": {
+                    "contributionYears": [2024]
                 }
             }
         }
     }
+
+    # 2. Contributions response
+    commit_contribs = []
+    for repo in repos_data:
+        commit_contribs.append({
+            "repository": {
+                "nameWithOwner": repo["nameWithOwner"],
+                "isPrivate": repo["isPrivate"],
+                "stargazers": repo["stargazers"],
+                "owner": repo["owner"]
+            },
+            "contributions": {"totalCount": repo.get("commits", 1)}
+        })
+
+    contribs_response = {
+        "data": {
+            "user": {
+                "contributionsCollection": {
+                    "commitContributionsByRepository": commit_contribs,
+                    "pullRequestContributionsByRepository": [],
+                    "issueContributionsByRepository": [],
+                    "pullRequestReviewContributionsByRepository": []
+                }
+            }
+        }
+    }
+
+    mock_client.graphql_query.side_effect = [years_response, contribs_response]
+
+
+def test_fetch_contributor_stats_success(mock_client):
+    """Test successful fetching of contributor stats."""
+    repos = [
+        {
+            "nameWithOwner": "owner/repo1",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 100},
+            "owner": {"avatarUrl": "http://avatar1", "login": "owner"},
+            "commits": 10
+        },
+        {
+            "nameWithOwner": "owner/repo2",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 50},
+            "owner": {"avatarUrl": "http://avatar2", "login": "owner"},
+            "commits": 5
+        }
+    ]
+    setup_mock_response(mock_client, repos)
 
     config = ContribFetchConfig(username="user", token="token", limit=5)
     stats = fetch_contributor_stats(config)
@@ -46,34 +95,30 @@ def test_fetch_contributor_stats_success(mock_client):
     assert len(stats["repos"]) == 2
     assert stats["repos"][0]["name"] == "owner/repo1"
     assert stats["repos"][0]["stars"] == 100
+    assert stats["repos"][0]["commits"] == 10
+    assert "rank_level" in stats["repos"][0]
     assert stats["repos"][1]["name"] == "owner/repo2"
     assert stats["repos"][1]["stars"] == 50
+    assert stats["repos"][1]["commits"] == 5
 
 
 def test_fetch_contributor_stats_sorting(mock_client):
     """Test that repos are sorted by stars."""
-    mock_client.graphql_query.return_value = {
-        "data": {
-            "user": {
-                "repositoriesContributedTo": {
-                    "nodes": [
-                        {
-                            "nameWithOwner": "owner/small",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 10},
-                            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
-                        },
-                        {
-                            "nameWithOwner": "owner/big",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 500},
-                            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
-                        }
-                    ]
-                }
-            }
+    repos = [
+        {
+            "nameWithOwner": "owner/small",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 10},
+            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
+        },
+        {
+            "nameWithOwner": "owner/big",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 500},
+            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
         }
-    }
+    ]
+    setup_mock_response(mock_client, repos)
 
     config = ContribFetchConfig(username="user", token="token", limit=5)
     stats = fetch_contributor_stats(config)
@@ -84,24 +129,15 @@ def test_fetch_contributor_stats_sorting(mock_client):
 
 def test_fetch_contributor_stats_limit(mock_client):
     """Test that results are limited."""
-    nodes = []
+    repos = []
     for i in range(10):
-        nodes.append({
+        repos.append({
             "nameWithOwner": f"owner/repo{i}",
             "isPrivate": False,
             "stargazers": {"totalCount": 100 - i},
             "owner": {"avatarUrl": "http://avatar", "login": "owner"}
         })
-
-    mock_client.graphql_query.return_value = {
-        "data": {
-            "user": {
-                "repositoriesContributedTo": {
-                    "nodes": nodes
-                }
-            }
-        }
-    }
+    setup_mock_response(mock_client, repos)
 
     config = ContribFetchConfig(username="user", token="token", limit=3)
     stats = fetch_contributor_stats(config)
@@ -112,28 +148,21 @@ def test_fetch_contributor_stats_limit(mock_client):
 
 def test_fetch_contributor_stats_exclude(mock_client):
     """Test excluded repositories are filtered out."""
-    mock_client.graphql_query.return_value = {
-        "data": {
-            "user": {
-                "repositoriesContributedTo": {
-                    "nodes": [
-                        {
-                            "nameWithOwner": "owner/keep",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 100},
-                            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
-                        },
-                        {
-                            "nameWithOwner": "owner/skip",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 100},
-                            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
-                        }
-                    ]
-                }
-            }
+    repos = [
+        {
+            "nameWithOwner": "owner/keep",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 100},
+            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
+        },
+        {
+            "nameWithOwner": "owner/skip",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 100},
+            "owner": {"avatarUrl": "http://avatar", "login": "owner"}
         }
-    }
+    ]
+    setup_mock_response(mock_client, repos)
 
     config = ContribFetchConfig(
         username="user", 
@@ -149,8 +178,53 @@ def test_fetch_contributor_stats_exclude(mock_client):
 
 def test_fetch_error(mock_client):
     """Test error handling."""
-    mock_client.graphql_query.return_value = {"errors": [{"message": "Bad query"}]}
+    mock_client.graphql_query.side_effect = [{"errors": [{"message": "Bad query"}]}]
     
     config = ContribFetchConfig(username="user", token="token")
     with pytest.raises(FetchError, match="GraphQL error"):
         fetch_contributor_stats(config)
+
+
+def test_fetch_contributor_stats_deduplication(mock_client):
+    """Test that same repo across different contribution types is deduplicated."""
+    # 1. Years response
+    years_response = {
+        "data": {
+            "user": {
+                "contributionsCollection": {
+                    "contributionYears": [2024]
+                }
+            }
+        }
+    }
+
+    # 2. Contributions response with duplicate repo in commits and PRs
+    repo_node = {
+        "nameWithOwner": "owner/repo",
+        "isPrivate": False,
+        "stargazers": {"totalCount": 100},
+        "owner": {"avatarUrl": "http://avatar", "login": "owner"}
+    }
+    
+    contribs_response = {
+        "data": {
+            "user": {
+                "contributionsCollection": {
+                    "commitContributionsByRepository": [{"repository": repo_node, "contributions": {"totalCount": 1}}],
+                    "pullRequestContributionsByRepository": [{"repository": repo_node, "contributions": {"totalCount": 1}}],
+                    "issueContributionsByRepository": [],
+                    "pullRequestReviewContributionsByRepository": []
+                }
+            }
+        }
+    }
+
+    mock_client.graphql_query.side_effect = [years_response, contribs_response]
+
+    config = ContribFetchConfig(username="user", token="token", limit=5)
+    stats = fetch_contributor_stats(config)
+
+    assert len(stats["repos"]) == 1
+    assert stats["repos"][0]["name"] == "owner/repo"
+    assert stats["repos"][0]["commits"] == 1
+    assert stats["repos"][0]["prs"] == 1

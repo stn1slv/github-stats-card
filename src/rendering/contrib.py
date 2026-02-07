@@ -74,18 +74,20 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
                 """)
 
             # 2. Repo Name
-            name = encode_html(repo["name"])
+            full_name = repo["name"]
+            display_name = full_name.split("/")[-1] if "/" in full_name else full_name
+            name = encode_html(display_name)
             body.append(f"""
             <text x="30" y="12.5" class="stat bold">{name}</text>
             """)
 
-            # 3. Stars (right aligned)
+            # 3. Rank (right aligned)
             # Rough width calculation: 467 - 25 (left pad) - 25 (right pad)
             right_edge = config.card_width - 50
-            stars = f"{repo['stars']:,}"
+            rank = repo["rank_level"]
             body.append(f"""
             <g transform="translate({right_edge}, 12.5)">
-                <text text-anchor="end" class="stat">{stars} ★</text>
+                <text text-anchor="end" class="stat bold">{rank}</text>
             </g>
             """)
             

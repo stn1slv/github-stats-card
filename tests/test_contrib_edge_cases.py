@@ -9,22 +9,66 @@ from src.rendering.contrib import render_contrib_card
 
 @pytest.fixture
 def mock_client():
-    with patch("src.github.fetcher.GitHubClient") as MockClient:
+    with patch("src.github.fetcher.GitHubClient") as MockClient, \
+         patch("src.github.fetcher.fetch_stats") as mock_fetch_stats:
+        
         client_instance = MockClient.return_value
+        client_instance.fetch_image.return_value = b"fake_image_data"
+        
+        mock_fetch_stats.return_value = {
+            "totalCommits": 1000,
+            "totalPRs": 100,
+            "totalIssues": 50,
+            "totalReviews": 20,
+            "followers": 10
+        }
+        
         yield client_instance
 
 
-def test_fetch_empty_repos(mock_client):
-    """Test fetching when user has no contributions."""
-    mock_client.graphql_query.return_value = {
+def setup_mock_response(mock_client, repos_data):
+    """Helper to set up the two-step GraphQL query mock."""
+    years_response = {
         "data": {
             "user": {
-                "repositoriesContributedTo": {
-                    "nodes": []
+                "contributionsCollection": {
+                    "contributionYears": [2024]
                 }
             }
         }
     }
+
+    commit_contribs = []
+    for repo in repos_data:
+        commit_contribs.append({
+            "repository": {
+                "nameWithOwner": repo["nameWithOwner"],
+                "isPrivate": repo["isPrivate"],
+                "stargazers": repo["stargazers"],
+                "owner": repo["owner"]
+            },
+            "contributions": {"totalCount": repo.get("commits", 1)}
+        })
+
+    contribs_response = {
+        "data": {
+            "user": {
+                "contributionsCollection": {
+                    "commitContributionsByRepository": commit_contribs,
+                    "pullRequestContributionsByRepository": [],
+                    "issueContributionsByRepository": [],
+                    "pullRequestReviewContributionsByRepository": []
+                }
+            }
+        }
+    }
+
+    mock_client.graphql_query.side_effect = [years_response, contribs_response]
+
+
+def test_fetch_empty_repos(mock_client):
+    """Test fetching when user has no contributions."""
+    setup_mock_response(mock_client, [])
 
     config = ContribFetchConfig(username="user", token="token")
     stats = fetch_contributor_stats(config)
@@ -34,22 +78,15 @@ def test_fetch_empty_repos(mock_client):
 
 def test_fetch_all_excluded(mock_client):
     """Test when all repositories are excluded."""
-    mock_client.graphql_query.return_value = {
-        "data": {
-            "user": {
-                "repositoriesContributedTo": {
-                    "nodes": [
-                        {
-                            "nameWithOwner": "owner/repo1",
-                            "isPrivate": False,
-                            "stargazers": {"totalCount": 10},
-                            "owner": {"avatarUrl": "url", "login": "owner"}
-                        }
-                    ]
-                }
-            }
+    repos = [
+        {
+            "nameWithOwner": "owner/repo1",
+            "isPrivate": False,
+            "stargazers": {"totalCount": 10},
+            "owner": {"avatarUrl": "url", "login": "owner"}
         }
-    }
+    ]
+    setup_mock_response(mock_client, repos)
 
     config = ContribFetchConfig(
         username="user", 
@@ -76,7 +113,13 @@ def test_render_limit_handling():
     """Test that rendering handles list limits gracefully."""
     stats = {
         "repos": [
-            {"name": f"repo{i}", "stars": i, "avatar_b64": None}
+            {
+                "name": f"repo{i}", 
+                "stars": i, 
+                "commits": 1, "prs": 0, "issues": 0, "reviews": 0,
+                "rank_level": "C",
+                "avatar_b64": None
+            }
             for i in range(20)
         ]
     }
