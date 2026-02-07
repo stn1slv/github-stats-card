@@ -1,7 +1,8 @@
 """Color parsing and validation utilities."""
 
 import re
-from typing import Union
+
+from .themes import THEMES
 
 
 def is_valid_hex_color(color: str) -> bool:
@@ -31,7 +32,7 @@ def is_valid_gradient(colors: list[str]) -> bool:
     return len(colors) > 2 and all(is_valid_hex_color(c) for c in colors[1:])
 
 
-def parse_color(color: Union[str, None], fallback: str) -> Union[str, list[str]]:
+def parse_color(color: str | None, fallback: str) -> str | list[str]:
     """
     Parse color string, supporting both solid colors and gradients.
 
@@ -65,13 +66,13 @@ def parse_color(color: Union[str, None], fallback: str) -> Union[str, list[str]]
 
 def get_card_colors(
     theme: str = "default",
-    title_color: Union[str, None] = None,
-    text_color: Union[str, None] = None,
-    icon_color: Union[str, None] = None,
-    bg_color: Union[str, None] = None,
-    border_color: Union[str, None] = None,
-    ring_color: Union[str, None] = None,
-) -> dict[str, Union[str, list[str]]]:
+    title_color: str | None = None,
+    text_color: str | None = None,
+    icon_color: str | None = None,
+    bg_color: str | None = None,
+    border_color: str | None = None,
+    ring_color: str | None = None,
+) -> dict[str, str | list[str]]:
     """
     Get resolved colors with theme defaults and custom overrides.
 
@@ -87,8 +88,6 @@ def get_card_colors(
     Returns:
         Dictionary with resolved colors
     """
-    from .themes import THEMES
-
     selected_theme = THEMES.get(theme, THEMES["default"])
     default_theme = THEMES["default"]
 

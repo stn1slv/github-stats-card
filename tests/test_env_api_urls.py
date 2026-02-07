@@ -12,7 +12,7 @@ def test_default_api_urls():
     with mock.patch.dict(os.environ, {}, clear=True):
         # Need to reload the module to pick up environment changes
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -25,7 +25,7 @@ def test_custom_api_url_env_var():
     custom_api_url = "https://github.enterprise.com/api/v3"
     with mock.patch.dict(os.environ, {"GITHUB_API_URL": custom_api_url}, clear=True):
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -41,7 +41,7 @@ def test_custom_graphql_url_env_var():
         os.environ, {"GITHUB_GRAPHQL_URL": custom_graphql_url}, clear=True
     ):
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -64,7 +64,7 @@ def test_both_custom_env_vars():
         clear=True,
     ):
         import importlib
-        from src import constants
+        from src.core import constants
 
         importlib.reload(constants)
 
@@ -77,7 +77,8 @@ def test_fetcher_uses_api_base_url():
     # Reset environment to ensure default values
     with mock.patch.dict(os.environ, {}, clear=True):
         import importlib
-        from src import constants, fetcher
+        from src.core import constants
+        from src.github import fetcher
 
         # Reload both modules to pick up clean environment
         importlib.reload(constants)

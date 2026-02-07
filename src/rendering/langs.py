@@ -1,12 +1,11 @@
 """Top Languages card renderer with multiple layout styles."""
 
 import math
-from typing import Optional
 
-from .card import render_card
+from .base import render_card
 from .colors import get_card_colors
-from .config import LangsCardConfig
-from .constants import (
+from ..core.config import LangsCardConfig
+from ..core.constants import (
     CARD_PADDING,
     DEFAULT_LANGS_CARD_WIDTH,
     DEFAULT_LANGS_COMPACT_WIDTH,
@@ -19,14 +18,14 @@ from .constants import (
     LANGS_PIE_RADIUS,
     ANIMATION_STAGGER_DELAY_MS,
 )
-from .langs_fetcher import Language
-from .utils import clamp_value, encode_html
+from ..github.langs_fetcher import Language
+from ..core.utils import clamp_value, encode_html
 
 
 def trim_top_languages(
     top_langs: dict[str, Language],
     langs_count: int,
-    hide: Optional[list[str]] = None,
+    hide: list[str] | None = None,
 ) -> tuple[list[Language], int]:
     """
     Trim languages to specified count while hiding certain languages.
@@ -391,11 +390,6 @@ def render_top_languages(
 
     Returns:
         SVG string
-
-    Examples:
-        >>> from .config import LangsCardConfig
-        >>> config = LangsCardConfig(layout="compact", theme="dark")
-        >>> svg = render_top_languages(langs, config)
     """
     # Validate layout
     valid_layouts = ["normal", "compact", "donut", "donut-vertical", "pie"]

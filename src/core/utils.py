@@ -1,11 +1,9 @@
 """Utility functions for formatting and data manipulation."""
 
-from typing import Union
-
 from .constants import NUMBER_FORMAT_THOUSAND_DIVISOR
 
 
-def k_formatter(num: int, precision: Union[int, None] = None) -> str:
+def k_formatter(num: int, precision: int | None = None) -> str:
     """
     Format number with K suffix for thousands.
 
@@ -72,6 +70,23 @@ def encode_html(text: str) -> str:
         .replace('"', "&quot;")
         .replace("'", "&#39;")
     )
+
+
+def parse_list_arg(arg: str | list[str] | None) -> list[str]:
+    """
+    Parse a comma-separated string or list into a list of strings.
+
+    Args:
+        arg: Comma-separated string, list of strings, or None
+
+    Returns:
+        List of stripped strings
+    """
+    if arg is None:
+        return []
+    if isinstance(arg, list):
+        return [str(s).strip() for s in arg if str(s).strip()]
+    return [s.strip() for s in arg.split(",") if s.strip()]
 
 
 def flex_layout(items: list[dict], gap: int, direction: str = "column") -> str:

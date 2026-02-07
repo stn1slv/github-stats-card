@@ -17,9 +17,11 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
   - Fetch user statistics (stars, commits, PRs, issues, reviews, contributions) using GitHub GraphQL API.
   - Fetch language usage data from repositories with configurable weighting (size vs. count).
   - Support Personal Access Token (PAT) for authentication.
+  - **FR-001.1: GitHubClient:** Centralized handling of GraphQL and REST requests with consistent headers and timeouts.
 - **FR-002: CLI Interface**
   - Provide a CLI with subcommands for each card type (`stats`, `top-langs`).
   - Support global flags for customization (themes, colors, output path).
+  - **FR-002.1: BaseConfig:** Automatic parsing of comma-separated lists and filtering of `None` values from CLI args.
 - **FR-003: Internationalization**
   - Support multiple locales for stat labels (e.g., "Stars" -> "Étoiles").
 - **FR-004: GitHub Enterprise Support**
@@ -51,58 +53,45 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 ## Non-Functional Requirements
 - **NFR-001: Performance** - Card generation should be fast (fetching data is the bottleneck).
 - **NFR-002: Reliability** - Handle API errors and rate limiting gracefully.
-- **NFR-003: Extensibility** - Easy to add new card types, themes, or layouts.
+- **NFR-003: Extensibility** - Easy to add new card types, themes, or layouts due to modular 3-tier sub-package structure.
 
 ## Key Entities
 
-### StatsCardConfig
+### StatsCardConfig (`src/core/config.py`)
 Configuration for stats card rendering:
 - `theme`, `colors` (title, text, icon, bg, border, ring)
 - `hide`, `show` (specific stats)
 - `hide_rank`, `show_icons`
 - `include_all_commits`
 
-### LangsCardConfig
+### LangsCardConfig (`src/core/config.py`)
 Configuration for top languages card rendering:
 - `layout` (normal, compact, donut, etc.)
 - `langs_count` (max languages to show)
 - `weighting` (size vs count weights)
 - `stats_format` (percentages vs bytes)
 
-### UserStats (Data Model)
-TypedDict containing:
-- `totalStars`, `totalCommits`, `totalPRs`, `totalIssues`, `totalReviews`
-- `contributedTo`, `mergedPRs`
-- `rank` (calculated)
+### UserStats (`src/github/fetcher.py`)
+TypedDict containing raw statistics from GitHub API.
 
-### Language (Data Model)
-Dataclass containing:
-- `name`
-- `color` (Hex)
-- `size` (Bytes)
-- `count` (Repositories using it)
+### Language (`src/github/langs_fetcher.py`)
+Dataclass representing an aggregated programming language.
 
 ## Architecture
 
 ### Data Flow by Card Type
 
 **1. Stats Card Flow:**
-`cli.stats` -> `fetcher.fetch_stats` (GraphQL) -> `rank.calculate_rank` -> `stats_card.render_stats_card` -> `card.render_card` (Base SVG) -> Output File
+`cli.stats` -> `github.fetcher.fetch_stats` -> `github.client.graphql_query` -> `github.rank.calculate_rank` -> `rendering.stats.render_stats_card` -> `rendering.base.render_card` -> Output File
 
 **2. Top Languages Card Flow:**
-`cli.top_langs` -> `langs_fetcher.fetch_top_languages` (GraphQL/REST) -> `langs_card.trim_top_languages` -> `langs_card.render_top_languages` (Layout Selection) -> `card.render_card` (Base SVG) -> Output File
+`cli.top_langs` -> `github.langs_fetcher.fetch_top_languages` -> `github.client.graphql_query` -> `rendering.langs.render_top_languages` -> `rendering.base.render_card` -> Output File
 
-### Layered Architecture
-- **Entry Point:** `src/cli.py` (Click-based CLI)
-- **Data Layer:** `src/fetcher.py`, `src/langs_fetcher.py` (GitHub API clients)
-- **Logic Layer:**
-  - `src/rank.py` (Ranking algorithm for Stats)
-  - `src/langs_card.py` (Trimming/Sorting logic for Langs)
-- **Presentation Layer:**
-  - `src/card.py` (Base SVG template & CSS)
-  - `src/stats_card.py` (Stats-specific composition)
-  - `src/langs_card.py` (Language-specific composition & layouts)
-- **Utilities:** `src/colors.py`, `src/utils.py`, `src/i18n.py`
+### Layered Architecture (Sub-packages)
+- **Core (`src/core/`):** Fundamental logic, constants, and shared configuration.
+- **GitHub (`src/github/`):** API integration, data retrieval, and domain logic (ranking).
+- **Rendering (`src/rendering/`):** SVG generation, CSS styling, and layout management.
+- **Entry Point:** `src/cli.py` (CLI orchestration).
 
 ## Edge Cases and Error Handling
 - Invalid GitHub Token (401 Unauthorized)
