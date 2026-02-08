@@ -39,6 +39,12 @@ uv run github-stats-card contrib \
   -u octocat \
   -o contributions.svg \
   --exclude-repo "awesome-*,facebook/react"
+
+# Exclude specific repository across all owners
+uv run github-stats-card contrib \
+  -u octocat \
+  -o contributions.svg \
+  --exclude-repo "my-private-repo"
 ```
 
 **CI/CD Integration (GitHub Actions):**

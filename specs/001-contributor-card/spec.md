@@ -94,7 +94,7 @@ As a user, I want clear feedback if I have no contributions or if I request more
 - **Dataclass**: Create `ContribCardConfig` in `src/core/config.py` (or similar).
 - **New Fields**:
   - `limit`: int
-  - `exclude_repos`: set[str]
+  - `exclude_repo`: list[str]
 
 ### Functional Requirements
 - **FR-001**: System MUST fetch repositories where the user is a contributor (including Commits, Pull Requests, Issues, and Reviews) across the last 5 years using `contributionsCollection`.
@@ -108,6 +108,7 @@ As a user, I want clear feedback if I have no contributions or if I request more
 - **FR-009**: System MUST fetch and display the repository owner's avatar as a visual indicator for each repository.
 - **FR-010**: Avatars MUST be embedded directly in the SVG as Base64-encoded Data URIs to ensure self-contained rendering.
 - **FR-011**: System MUST use a generic placeholder icon if an owner avatar fails to download.
+- **FR-012**: Repository exclusion MUST support wildcard (*) matching and owner-omitted matching (e.g., "awesome-*" matches any repo starting with "awesome-" regardless of owner). Matching MUST be case-insensitive.
 
 ### Visual/Output Requirements
 - **VR-001**: SVG MUST match the visual style (fonts, padding, border radius) of existing cards, with a default width of 467px.
