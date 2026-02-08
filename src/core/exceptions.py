@@ -15,7 +15,7 @@ class APIError(GitHubStatsCardError):
 
 class FetchError(APIError):
     """Error fetching data from GitHub API.
-    
+
     Kept for backwards compatibility. Use APIError for new code.
     """
 
@@ -24,7 +24,7 @@ class FetchError(APIError):
 
 class LanguageFetchError(APIError):
     """Error fetching language data from GitHub API.
-    
+
     Kept for backwards compatibility. Use APIError for new code.
     """
 

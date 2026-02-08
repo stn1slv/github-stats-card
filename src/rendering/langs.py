@@ -43,11 +43,7 @@ def trim_top_languages(
     langs_count = int(clamp_value(int(langs_count), 1, MAXIMUM_LANGS_COUNT))
 
     # Filter and sort
-    langs = [
-        lang
-        for lang in top_langs.values()
-        if lang.name.lower().strip() not in langs_to_hide
-    ]
+    langs = [lang for lang in top_langs.values() if lang.name.lower().strip() not in langs_to_hide]
     langs = sorted(langs, key=lambda x: x.size, reverse=True)[:langs_count]
 
     total_size = sum(lang.size for lang in langs)
@@ -126,7 +122,7 @@ def render_normal_layout(
         display_value = get_display_value(lang.size, percentage, stats_format)
         stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
-        item = f'''
+        item = f"""
         <g class="stagger" style="animation-delay: {stagger_delay}ms" transform="translate(0, {index * 40})">
           <text data-testid="lang-name" x="2" y="15" class="lang-name">{encode_html(lang.name)}</text>
           <text x="{width - padding_right + 10}" y="34" class="lang-name">{display_value}</text>
@@ -138,7 +134,7 @@ def render_normal_layout(
             </svg>
           </svg>
         </g>
-        '''
+        """
         items.append(item)
 
     return "\n".join(items)
@@ -167,8 +163,7 @@ def render_compact_layout(
             percentage = (lang.size / total_size) * offset_width if total_size > 0 else 0
             # Add minimum width for visibility of small bars
             bar_width = percentage + 10 if percentage > 0 and percentage < 10 else percentage
-            bars.append(
-                f'''
+            bars.append(f"""
         <rect
           mask="url(#rect-mask)"
           data-testid="lang-progress"
@@ -178,17 +173,16 @@ def render_compact_layout(
           height="8"
           fill="{lang.color}"
         />
-      '''
-            )
+      """)
             progress_offset += percentage
 
-        progress_bar = f'''
+        progress_bar = f"""
   
       <mask id="rect-mask">
           <rect x="0" y="0" width="{offset_width}" height="8" fill="white" rx="5"/>
         </mask>
         {"".join(bars)}
-      '''
+      """
 
     # Language legend (2 columns)
     half = (len(langs) + 1) // 2
@@ -203,20 +197,20 @@ def render_compact_layout(
         percentage = (lang.size / total_size) * 100 if total_size > 0 else 0
         display_value = get_display_value(lang.size, percentage, stats_format)
         stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
-        
+
         if hide_progress:
             # Without progress bar, just show the name
-            return f'''<g transform="translate(0, {index * 25})">
+            return f"""<g transform="translate(0, {index * 25})">
     <g class="stagger" style="animation-delay: {stagger_delay}ms">
       <circle cx="5" cy="6" r="5" fill="{lang.color}" />
       <text data-testid="lang-name" x="15" y="10" class='lang-name'>
         {encode_html(lang.name)}
       </text>
     </g>
-  </g>'''
+  </g>"""
         else:
             # With progress bar, separate name and percentage for alignment
-            return f'''<g transform="translate(0, {index * 25})">
+            return f"""<g transform="translate(0, {index * 25})">
     <g class="stagger" style="animation-delay: {stagger_delay}ms">
       <circle cx="5" cy="6" r="5" fill="{lang.color}" />
       <text data-testid="lang-name" x="15" y="10" class='lang-name'>
@@ -226,19 +220,19 @@ def render_compact_layout(
         {display_value}
       </text>
     </g>
-  </g>'''
+  </g>"""
 
     col1 = "\n".join(render_lang_item(lang, i) for i, lang in enumerate(col1_langs))
     col2 = "\n".join(render_lang_item(lang, i) for i, lang in enumerate(col2_langs))
 
     y_offset = 0 if hide_progress else 25
 
-    return f'''
+    return f"""
     {progress_bar}
     <g transform="translate(0, {y_offset})">
       <g transform="translate(0, 0)">{col1}</g><g transform="translate({column_width}, 0)">{col2}</g>
     </g>
-  '''
+  """
 
 
 def render_donut_layout(
@@ -262,16 +256,14 @@ def render_donut_layout(
         segment_length = (percentage / 100) * circumference
         stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
-        segments.append(
-            f'''
+        segments.append(f"""
         <circle class="stagger" style="animation-delay: {stagger_delay}ms"
                 cx="{center_x}" cy="{center_y}" r="{radius}"
                 fill="transparent" stroke="{lang.color}" stroke-width="25"
                 stroke-dasharray="{segment_length} {circumference}"
                 stroke-dashoffset="{-offset}"
                 transform="rotate(-90 {center_x} {center_y})" />
-        '''
-        )
+        """)
         offset += segment_length
 
     # Legend on the right
@@ -281,23 +273,21 @@ def render_donut_layout(
         display_value = get_display_value(lang.size, percentage, stats_format)
         stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
 
-        legend_items.append(
-            f'''
+        legend_items.append(f"""
         <g class="stagger" style="animation-delay: {stagger_delay}ms" transform="translate(0, {index * 32})">
           <circle cx="5" cy="6" r="5" fill="{lang.color}" />
           <text x="15" y="10" class="lang-name">{encode_html(lang.name)} {display_value}</text>
         </g>
-        '''
-        )
+        """)
 
-    return f'''
+    return f"""
     <g transform="translate(25, 0)">
       {"".join(segments)}
     </g>
     <g transform="translate(175, 50)">
       {"".join(legend_items)}
     </g>
-    '''
+    """
 
 
 def render_pie_layout(
@@ -310,9 +300,7 @@ def render_pie_layout(
     radius = LANGS_PIE_RADIUS
     center_x, center_y = 150, 100
 
-    def polar_to_cartesian(
-        cx: float, cy: float, r: float, angle_deg: float
-    ) -> tuple[float, float]:
+    def polar_to_cartesian(cx: float, cy: float, r: float, angle_deg: float) -> tuple[float, float]:
         angle_rad = math.radians(angle_deg)
         return (cx + r * math.cos(angle_rad), cy + r * math.sin(angle_rad))
 
@@ -334,12 +322,10 @@ def render_pie_layout(
 
         path = f"M {center_x} {center_y} L {start_x} {start_y} A {radius} {radius} 0 {large_arc} 1 {end_x} {end_y} Z"
 
-        slices.append(
-            f'''
+        slices.append(f"""
         <path class="stagger" style="animation-delay: {stagger_delay}ms"
               d="{path}" fill="{lang.color}" data-testid="lang-pie" />
-        '''
-        )
+        """)
 
         current_angle = end_angle
 
@@ -354,24 +340,22 @@ def render_pie_layout(
         col = 0 if index < half else 1
         row = index if index < half else index - half
 
-        legend_items.append(
-            f'''
+        legend_items.append(f"""
         <g class="stagger" style="animation-delay: {stagger_delay}ms" 
            transform="translate({col * LANGS_COMPACT_COLUMN_WIDTH}, {row * LANGS_COMPACT_ROW_HEIGHT})">
           <circle cx="5" cy="6" r="5" fill="{lang.color}" />
           <text x="15" y="10" class="lang-name">{encode_html(lang.name)} {display_value}</text>
         </g>
-        '''
-        )
+        """)
 
-    return f'''
+    return f"""
     <g transform="translate(0, 0)">
       {"".join(slices)}
     </g>
     <g transform="translate(25, 220)">
       {"".join(legend_items)}
     </g>
-    '''
+    """
 
 
 # ============ Main Renderer ============
@@ -429,7 +413,7 @@ def render_top_languages(
         height = 300 + ((len(langs) + 1) // 2) * 25
     else:  # normal
         height = 45 + (len(langs) + 1) * 40
-    
+
     # Add 30px extra height when title is shown (55px offset vs 25px)
     if not config.hide_title:
         height += 30
@@ -445,25 +429,23 @@ def render_top_languages(
 
     # Extract text color for rendering
     final_text_color = (
-        colors["textColor"]
-        if isinstance(colors["textColor"], str)
-        else colors["textColor"][1]
+        colors["textColor"] if isinstance(colors["textColor"], str) else colors["textColor"][1]
     )
 
     # Render layout
     if len(langs) == 0:
         height = 90
-        final_layout = '''
+        final_layout = """
         <text x="25" y="50" class="lang-name">No languages data available</text>
-        '''
+        """
     elif config.layout == "pie":
         final_layout = render_pie_layout(langs, total_size, config.stats_format, final_text_color)
     elif config.layout == "donut-vertical":
-        final_layout = f'''
+        final_layout = f"""
         <g transform="translate(0, 0)">
           {render_pie_layout(langs, total_size, config.stats_format, final_text_color)}
         </g>
-        '''
+        """
     elif config.layout == "donut":
         final_layout = render_donut_layout(
             langs, width, total_size, config.stats_format, final_text_color
@@ -478,15 +460,15 @@ def render_top_languages(
         )
 
     # Add CSS
-    css = f'''
+    css = f"""
     .lang-name {{
       font: 400 11px "Segoe UI", Ubuntu, Sans-Serif;
       fill: {final_text_color};
     }}
-    '''
+    """
 
     if not config.disable_animations:
-        css += '''
+        css += """
     .stagger {
       opacity: 0;
       animation: fadeInAnimation 0.3s ease-in-out forwards;
@@ -502,7 +484,7 @@ def render_top_languages(
       from { opacity: 0; }
       to { opacity: 1; }
     }
-    '''
+    """
 
     # Wrap in padding group for most layouts
     if config.layout in ["pie", "donut-vertical"]:

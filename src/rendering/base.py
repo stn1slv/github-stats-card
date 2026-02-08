@@ -101,7 +101,7 @@ def render_card(
         ring_color = f"#{ring_color_val[1]}"
     else:
         ring_color = str(ring_color_val)
-        
+
     # Ensure ring color has # prefix if it's a hex
     if len(ring_color) in [3, 6, 8] and not ring_color.startswith("#"):
         ring_color = f"#{ring_color}"

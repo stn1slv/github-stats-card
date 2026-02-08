@@ -30,7 +30,10 @@ def test_fetch_top_languages_success(mock_post):
                             "languages": {
                                 "edges": [
                                     {"size": 100, "node": {"name": "Python", "color": "#3572A5"}},
-                                    {"size": 50, "node": {"name": "JavaScript", "color": "#f1e05a"}},
+                                    {
+                                        "size": 50,
+                                        "node": {"name": "JavaScript", "color": "#f1e05a"},
+                                    },
                                 ]
                             },
                         }

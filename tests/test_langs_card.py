@@ -100,7 +100,7 @@ def test_render_top_languages_hide_title(sample_langs):
     svg = render_top_languages(sample_langs, config)
     # Header text should be hidden, but title tag still present for a11y
     assert 'class="header"' not in svg
-    assert "<title id=\"titleId\">Most Used Languages</title>" in svg
+    assert '<title id="titleId">Most Used Languages</title>' in svg
 
 
 def test_render_top_languages_hide_border(sample_langs):
@@ -119,7 +119,7 @@ def test_render_top_languages_theme(sample_langs):
 def test_render_top_languages_custom_colors(sample_langs):
     config = LangsCardConfig(title_color="ff0000")
     svg = render_top_languages(sample_langs, config)
-    assert 'fill: #ff0000' in svg
+    assert "fill: #ff0000" in svg
 
 
 def test_render_top_languages_bytes_format(sample_langs):

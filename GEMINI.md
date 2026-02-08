@@ -58,3 +58,9 @@ The project uses `uv` for all lifecycle tasks.
 *   **Testing:** New features must include unit tests. The project maintains high test coverage.
 *   **Modular Design:** Code must reside in the appropriate sub-package (`core`, `github`, or `rendering`). No circular dependencies.
 *   **Contribution:** Follow the guidelines in `CONTRIBUTING.md`. Use Conventional Commits for commit messages.
+
+## Active Technologies
+- Python 3.13+ (Managed by `uv`) + Click (CLI), Requests (API), Built-in XML/SVG libraries (001-contributor-card)
+
+## Recent Changes
+- 001-contributor-card: Added Python 3.13+ (Managed by `uv`) + Click (CLI), Requests (API), Built-in XML/SVG libraries

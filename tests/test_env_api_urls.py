@@ -35,9 +35,7 @@ def test_custom_api_url_env_var():
 def test_custom_graphql_url_env_var():
     """Test that GITHUB_GRAPHQL_URL environment variable is respected."""
     custom_graphql_url = "https://github.enterprise.com/api/graphql"
-    with mock.patch.dict(
-        os.environ, {"GITHUB_GRAPHQL_URL": custom_graphql_url}, clear=True
-    ):
+    with mock.patch.dict(os.environ, {"GITHUB_GRAPHQL_URL": custom_graphql_url}, clear=True):
         import importlib
         from src.core import constants
 

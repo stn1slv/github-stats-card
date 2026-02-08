@@ -48,3 +48,35 @@ def test_parse_list_arg():
     assert parse_list_arg(" foo , bar ") == ["foo", "bar"]
     assert parse_list_arg(["foo", "bar"]) == ["foo", "bar"]
     assert parse_list_arg([" foo ", " bar "]) == ["foo", "bar"]
+
+
+def test_is_repo_excluded():
+    from src.core.utils import is_repo_excluded
+
+    # Exact match (full name)
+    assert is_repo_excluded("owner/repo", ["owner/repo"]) is True
+    assert is_repo_excluded("owner/repo", ["other/repo"]) is False
+
+    # Exact match (repo name only pattern)
+    assert is_repo_excluded("stn1slv/awesome-cli-apps", ["awesome-cli-apps"]) is True
+    assert is_repo_excluded("octocat/awesome-cli-apps", ["awesome-cli-apps"]) is True
+    assert is_repo_excluded("awesome-cli-apps", ["awesome-cli-apps"]) is True
+
+    # Wildcard match (full name pattern)
+    assert is_repo_excluded("owner/repo-abc", ["owner/repo-*"]) is True
+    assert is_repo_excluded("other/repo-abc", ["owner/repo-*"]) is False
+
+    # Wildcard match (repo name only pattern)
+    assert is_repo_excluded("stn1slv/awesome-speakers", ["awesome-*"]) is True
+    assert is_repo_excluded("octocat/awesome-newsletters", ["awesome-*"]) is True
+    assert is_repo_excluded("other-apps", ["awesome-*"]) is False
+
+    # Case insensitive matching (enforced by lowercasing)
+    assert is_repo_excluded("AWESOME-apps", ["awesome-*"]) is True
+    assert is_repo_excluded("awesome-apps", ["AWESOME-*"]) is True
+
+    # Multiple patterns
+    assert is_repo_excluded("stn1slv/test-repo", ["awesome-*", "test-*"]) is True
+
+    # Empty patterns
+    assert is_repo_excluded("repo", []) is False

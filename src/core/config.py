@@ -137,3 +137,41 @@ class LangsFetchConfig(BaseConfig):
     exclude_repo: list[str] = field(default_factory=list)
     size_weight: float = 1.0
     count_weight: float = 0.0
+
+
+@dataclass
+class ContribCardConfig(BaseConfig):
+    """Configuration for contributor card rendering."""
+
+    # Theme and colors
+    theme: str = "default"
+    title_color: str | None = None
+    text_color: str | None = None
+    bg_color: str | None = None
+    border_color: str | None = None
+
+    # Visibility options
+    hide_border: bool = False
+    hide_title: bool = False
+
+    # Layout options
+    card_width: int = 467
+    border_radius: float = 4.5
+
+    # Display options
+    limit: int = 10
+    exclude_repo: list[str] = field(default_factory=list)
+    custom_title: str | None = None
+
+    # Animation options
+    disable_animations: bool = False
+
+
+@dataclass
+class ContribFetchConfig(BaseConfig):
+    """Configuration for fetching contributor data."""
+
+    username: str
+    token: str
+    limit: int = 10
+    exclude_repo: list[str] = field(default_factory=list)

@@ -1,5 +1,7 @@
 """Utility functions for formatting and data manipulation."""
 
+import fnmatch
+
 from .constants import NUMBER_FORMAT_THOUSAND_DIVISOR
 
 
@@ -36,6 +38,37 @@ def k_formatter(num: int, precision: int | None = None) -> str:
     if formatted == int(formatted):
         return f"{int(formatted)}k"
     return f"{formatted}k"
+
+
+def is_repo_excluded(repo_name: str, exclude_patterns: list[str]) -> bool:
+    """
+    Check if a repository should be excluded based on patterns.
+    Supports wildcards using fnmatch (e.g., "awesome-*").
+    If the pattern does not contain a '/', it matches against the repo name only.
+    Matching is case-insensitive.
+
+    Args:
+        repo_name: Repository name (e.g., "owner/repo" or "repo")
+        exclude_patterns: List of exclusion patterns
+
+    Returns:
+        True if the repo matches any pattern
+    """
+    repo_name = repo_name.lower()
+    # Extract just the repo name part if repo_name is "owner/repo"
+    repo_name_only = repo_name.split("/")[-1] if "/" in repo_name else repo_name
+
+    for pattern in exclude_patterns:
+        pattern = pattern.lower()
+        # If pattern has no '/', match against the repo name only
+        if "/" not in pattern:
+            if fnmatch.fnmatch(repo_name_only, pattern):
+                return True
+        else:
+            # If pattern has '/', match against the full provided repo_name
+            if fnmatch.fnmatch(repo_name, pattern):
+                return True
+    return False
 
 
 def clamp_value(value: float, min_val: float, max_val: float) -> float:

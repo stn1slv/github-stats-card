@@ -204,7 +204,7 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
     # Calculate card height to match reference
     num_stats = len(stat_items)
     card_height = (num_stats * config.line_height) + STATS_CARD_BASE_HEIGHT
-    
+
     # Add 30px extra height when title is shown (55px offset vs 25px)
     if not config.hide_title:
         card_height += 30

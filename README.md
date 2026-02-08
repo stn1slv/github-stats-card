@@ -11,6 +11,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 - 🎨 **50+ Built-in Themes** - Choose from a variety of beautiful color schemes
 - 📊 **Comprehensive Stats** - Stars, commits, PRs, issues, reviews, and more
 - 🔤 **Top Languages Card** - Show your most used programming languages with 5 layouts
+- 🚀 **Top Contributions Card** - Show your impact on external repositories with rank levels
 - ⚖️ **Smart Weighting** - Preset rankings (balanced, expertise, diversity) for language stats
 - 📐 **Aligned Layouts** - Compact top-langs card matches stats card width (467px)
 - 🔧 **Highly Customizable** - Customize colors, layout, and content
@@ -81,6 +82,9 @@ uv run github-stats-card stats -u your-username -o stats.svg
 
 # Top languages card
 uv run github-stats-card top-langs -u your-username -o top-langs.svg
+
+# Top contributions card
+uv run github-stats-card contrib -u your-username -o contrib.svg
 ```
 
 ## Usage
@@ -88,6 +92,7 @@ uv run github-stats-card top-langs -u your-username -o top-langs.svg
 The CLI provides two main commands:
 - `stats` - Generate GitHub stats card
 - `top-langs` - Generate top languages card
+- `contrib` - Generate top contributions card
 
 ### GitHub Stats Card
 
@@ -128,6 +133,20 @@ uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --layout pie --stats-format bytes
 ```
 
+### Top Contributions Card
+
+```bash
+# Generate with default theme
+uv run github-stats-card contrib -u octocat -o contrib.svg
+
+# Top 5 contributions with dark theme
+uv run github-stats-card contrib -u octocat -o contrib.svg --theme vue-dark --limit 5
+
+# Exclude specific repositories or use wildcards
+uv run github-stats-card contrib -u octocat -o contrib.svg \
+  --exclude-repo "awesome-*,facebook/react"
+```
+
 ### Advanced Options
 
 **Stats Card:**
@@ -157,6 +176,10 @@ uv run github-stats-card stats -u octocat -o stats.svg \
 # Exclude specific repositories
 uv run github-stats-card top-langs -u octocat -o top-langs.svg \
   --exclude-repo "repo1,repo2"
+
+# Exclude using wildcards or repo-only names
+uv run github-stats-card top-langs -u octocat -o top-langs.svg \
+  --exclude-repo "awesome-*,mule-*"
 
 # Use weighting presets
 uv run github-stats-card top-langs -u octocat -o top-langs.svg \
@@ -191,10 +214,17 @@ Run `uv run github-stats-card stats --help` or `uv run github-stats-card top-lan
 - Basic: username, token, output, theme
 - Display: hide-border, hide-title, hide-progress
 - Layout: layout (normal/compact/donut/donut-vertical/pie), card-width, border-radius
-- Languages: langs-count, hide (languages), exclude-repo
+- Languages: langs-count, hide (languages), exclude-repo (supports wildcards like "awesome-*")
 - Ranking: weighting (size-only/balanced/expertise/diversity), size-weight, count-weight
 - Colors: title-color, text-color, bg-color, border-color
 - Other: stats-format (percentages/bytes), custom-title, disable-animations
+
+**Top Contributions Card Options:**
+- Basic: username, token, output, theme
+- Display: hide-border
+- Limits: limit (default: 10), exclude-repo (supports wildcards and repo-only names)
+- Colors: title-color, text-color, bg-color, border-color
+- Other: custom-title, card-width, border-radius, disable-animations
 
 **Weighting Presets:**
 - `size-only` (default) - 100% code size, 0% repo count
@@ -282,7 +312,7 @@ jobs:
 #### Available Action Inputs
 
 **Common inputs:**
-- `card-type` (required) - Type of card: `stats` or `top-langs`
+- `card-type` (required) - Type of card: `stats`, `top-langs`, or `contrib`
 - `username` (required) - GitHub username
 - `token` (required) - GitHub Personal Access Token
 - `output` (required) - Output SVG file path
@@ -308,6 +338,10 @@ jobs:
 - `weighting` - Weighting preset: `size-only`, `balanced`, `expertise`, `diversity`
 - `exclude-repo` - Comma-separated repos to exclude
 - `hide` - Comma-separated languages to hide
+
+**Top-contributions card inputs:**
+- `limit` - Number of repositories to show (default: `10`)
+- `exclude-repo` - Comma-separated repos to exclude
 
 ### Method 2: Direct CLI Installation
 
@@ -535,6 +569,35 @@ svg = render_top_languages(langs, config)
 
 # Save to file
 with open("top-langs.svg", "w") as f:
+    f.write(svg)
+```
+
+### Top Contributions Card
+
+```python
+from src.github.fetcher import fetch_contributor_stats
+from src.rendering.contrib import render_contrib_card
+from src.core.config import ContribCardConfig, ContribFetchConfig
+
+# Fetch contributor stats
+fetch_config = ContribFetchConfig(
+    username="octocat",
+    token="ghp_your_token",
+    limit=10
+)
+stats = fetch_contributor_stats(fetch_config)
+
+# Create configuration
+config = ContribCardConfig(
+    theme="vue-dark",
+    limit=5
+)
+
+# Render SVG
+svg = render_contrib_card(stats, config)
+
+# Save to file
+with open("contributions.svg", "w") as f:
     f.write(svg)
 ```
 
