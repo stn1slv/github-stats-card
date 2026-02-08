@@ -29,7 +29,7 @@ class BaseConfig:
         filtered = {k: v for k, v in kwargs.items() if k in valid_fields and v is not None}
 
         # Handle known list fields
-        for list_key in ["hide", "show", "exclude_repo", "exclude_repos"]:
+        for list_key in ["hide", "show", "exclude_repo"]:
             if list_key in filtered:
                 filtered[list_key] = parse_list_arg(filtered[list_key])
 

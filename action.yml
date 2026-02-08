@@ -8,7 +8,7 @@ branding:
 
 inputs:
   card-type:
-    description: 'Type of card to generate (stats or top-langs)'
+    description: 'Type of card to generate (stats, top-langs, or contrib)'
     required: true
     default: 'stats'
   
@@ -75,6 +75,11 @@ inputs:
     description: 'Number of languages to show (top-langs only)'
     required: false
     default: '5'
+  
+  limit:
+    description: 'Number of repositories to show (contrib only)'
+    required: false
+    default: '10'
   
   hide-progress:
     description: 'Hide progress bars (top-langs only)'
@@ -164,8 +169,10 @@ runs:
         # Build command based on card type
         if [ "${{ inputs.card-type }}" = "stats" ]; then
           CMD="github-stats-card stats"
-        else
+        elif [ "${{ inputs.card-type }}" = "top-langs" ]; then
           CMD="github-stats-card top-langs"
+        else
+          CMD="github-stats-card contrib"
         fi
         
         # Add common options
@@ -192,6 +199,12 @@ runs:
           CMD="$CMD --langs-count ${{ inputs.langs-count }}"
           [ "${{ inputs.hide-progress }}" = "true" ] && CMD="$CMD --hide-progress"
           [ -n "${{ inputs.weighting }}" ] && CMD="$CMD --weighting ${{ inputs.weighting }}"
+          [ -n "${{ inputs.exclude-repo }}" ] && CMD="$CMD --exclude-repo '${{ inputs.exclude-repo }}'"
+        fi
+
+        # Add contrib-specific options
+        if [ "${{ inputs.card-type }}" = "contrib" ]; then
+          CMD="$CMD --limit ${{ inputs.limit }}"
           [ -n "${{ inputs.exclude-repo }}" ] && CMD="$CMD --exclude-repo '${{ inputs.exclude-repo }}'"
         fi
         

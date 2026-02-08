@@ -625,6 +625,12 @@ def top_langs(
     help="Custom card title text",
 )
 @click.option(
+    "--border-radius",
+    type=float,
+    default=4.5,
+    help="Border radius (default: 4.5)",
+)
+@click.option(
     "--disable-animations",
     is_flag=True,
     help="Disable CSS animations",
@@ -643,6 +649,7 @@ def contrib(
     bg_color: str | None,
     border_color: str | None,
     custom_title: str | None,
+    border_radius: float,
     disable_animations: bool,
 ) -> None:
     """
@@ -691,6 +698,7 @@ def contrib(
             bg_color=bg_color,
             border_color=border_color,
             custom_title=custom_title,
+            border_radius=border_radius,
             disable_animations=disable_animations,
         )
 

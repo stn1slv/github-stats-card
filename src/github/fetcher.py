@@ -456,7 +456,17 @@ def fetch_contributor_stats(config: ContribFetchConfig) -> ContributorStats:
                 col_query, {"login": config.username, "from": from_date, "to": to_date}
             )
 
-            collection = c_data["data"]["user"]["contributionsCollection"]
+            if "errors" in c_data:
+                # Log error and continue to next year
+                continue
+
+            user_data = c_data.get("data", {}).get("user")
+            if not user_data:
+                continue
+
+            collection = user_data.get("contributionsCollection")
+            if not collection:
+                continue
 
             # Helper to process a contribution list
             def process_list(items: list[dict[str, Any]], contrib_type: str) -> None:

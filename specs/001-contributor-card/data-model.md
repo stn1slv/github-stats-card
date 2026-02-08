@@ -11,7 +11,7 @@
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `limit` | `int` | `10` | Max number of repositories to display. |
-| `exclude_repos` | `set[str]` | `set()` | Repositories to exclude (format: "owner/repo"). |
+| `exclude_repo` | `list[str]` | `[]` | Repositories to exclude (supports wildcards). |
 | `theme` | `str` | `"default"` | Visual theme name. |
 | `title_color` | `str \| None` | `None` | Override title color. |
 | `text_color` | `str \| None` | `None` | Override text color. |
@@ -19,6 +19,7 @@
 | `border_color` | `str \| None` | `None` | Override border color. |
 | `hide_border` | `bool` | `False` | Toggle border visibility. |
 | `card_width` | `int` | `467` | Card width in pixels. |
+| `border_radius` | `float` | `4.5` | Border radius. |
 | `disable_animations` | `bool` | `False` | Disable CSS animations. |
 
 ### `ContribFetchConfig`
@@ -30,7 +31,7 @@
 | `username` | `str` | - | Target GitHub username. |
 | `token` | `str` | - | GitHub PAT. |
 | `limit` | `int` | `10` | Fetch limit (used to optimize query). |
-| `exclude_repos` | `set[str]` | `set()` | Filter set. |
+| `exclude_repo` | `list[str]` | `[]` | Filter list. |
 
 ## Domain Entities
 
@@ -41,6 +42,7 @@
 |-------|------|-------------|
 | `name` | `str` | Full name ("owner/repo"). |
 | `stars` | `int` | Stargazer count. |
+| `rank_level` | `str` | Calculated rank level (e.g., A+, S). |
 | `avatar_b64` | `str` | Base64 encoded avatar image (data URI). |
 
 ### `ContributorStats`
@@ -62,11 +64,11 @@ def fetch_contributor_stats(
     """
     Fetches contribution data, sorts by stars, and embeds avatars.
     
-    1. Query GraphQL for `repositoriesContributedTo` (first 100).
-    2. Filter out user-owned repos.
-    3. Filter out `config.exclude_repos`.
-    4. Sort by stars descending.
-    5. Slice top `config.limit`.
+    1. Query GraphQL for `contributionsCollection` across last 5 years.
+    2. Filter out user-owned repos and private repos.
+    3. Filter out `config.exclude_repo`.
+    4. Calculate rank levels based on user activity and repo stars.
+    5. Sort by stars descending and slice top `config.limit`.
     6. Fetch and base64 encode avatars for the slice.
     """
 ```
@@ -85,7 +87,7 @@ def render_contrib_card(
     1. Initialize SVG with `config.card_width` and dynamic height.
     2. Render header ("Top Contributions").
     3. Iterate `stats.repos`:
-       - Render row with avatar (circular clipPath), name, and star count.
+       - Render row with avatar, name, and rank level icon.
     4. Return full SVG string.
     """
 ```

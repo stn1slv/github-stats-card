@@ -163,17 +163,3 @@ def format_gradient(colors: list[str]) -> tuple[str, str]:
     """
 
     return gradient_id, gradient_svg
-
-
-def get_color(color: str | None, fallback: str = "#000000") -> str | list[str]:
-    """
-    Get parsed color string or gradient list.
-
-    Args:
-        color: Input color string
-        fallback: Fallback hex color
-
-    Returns:
-        Parsed color with # prefix or list of colors for gradient
-    """
-    return parse_color(color, fallback)
