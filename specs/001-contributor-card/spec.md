@@ -22,7 +22,7 @@
 - Q: Should we impose a hard limit on how many avatars we attempt to download? → A: Option A - No Limit: Fetch avatars for all repositories up to the user-defined --limit.
 - Q: What should the system do if it fails to download the owner avatar for a specific repository? → A: Option A - Placeholder: Use a generic SVG icon placeholder for that repository.
 - Q: What should be the default width for the contributor card? → A: Option A - 467px (Matches standard stats card width).
-- Q: What should be the fixed height for each repository row in the list? → A: Option B - 30px (Standard)
+- Q: What should be the fixed height for each repository row in the list? → A: Option B - 35px (Spacious)
 - Q: How should repository exclusion work? → A: Support wildcard (*) patterns and case-insensitive matching. If no owner is specified (e.g., "awesome-*"), match against repository name only.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -112,7 +112,7 @@ As a user, I want clear feedback if I have no contributions or if I request more
 ### Visual/Output Requirements
 - **VR-001**: SVG MUST match the visual style (fonts, padding, border radius) of existing cards, with a default width of 467px.
 - **VR-002**: Colors MUST respect the active theme.
-- **VR-003**: Layout MUST accommodate the list of repositories cleanly, using a standard row height of 30px (e.g., rows with owner avatar on the left, followed by repo name, and user rank level on the right).
+- **VR-003**: Layout MUST accommodate the list of repositories cleanly, using a standard row height of 35px (e.g., rows with owner avatar on the left, followed by repo name, and user rank level inside a circle on the right).
 - **VR-004**: Owner avatars MUST be rendered as circular images with dimensions of 20px x 20px.
 
 ## Success Criteria *(mandatory)*

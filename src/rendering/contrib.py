@@ -28,8 +28,8 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
     )
 
     # Calculate height based on number of repos
-    # Header (55) + items * 30 + padding (15)
-    item_height = 30
+    # Header (55) + items * 35 + padding (15)
+    item_height = 35
     num_items = len(stats["repos"])
     if num_items == 0:
         height = 100
@@ -46,10 +46,11 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
         )
     else:
         # Avatar clip path definition (reused)
+        # Using objectBoundingBox ensures the circle is always centered on the element
         body.append("""
         <defs>
-            <clipPath id="avatar-clip">
-                <circle cx="10" cy="10" r="10" />
+            <clipPath id="avatar-clip" clipPathUnits="objectBoundingBox">
+                <circle cx="0.5" cy="0.5" r="0.5" />
             </clipPath>
         </defs>
         """)
@@ -60,34 +61,39 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
             # Row group
             body.append(f'<g transform="translate(25, {y_pos})">')
             
-            # 1. Avatar
+            # 1. Avatar (centered vertically: (35-20)/2 = 7.5)
             if repo["avatar_b64"]:
                 # Use embedded base64 image
                 body.append(f"""
-                <image x="0" y="-2" width="20" height="20" clip-path="url(#avatar-clip)" 
+                <image x="0" y="7.5" width="20" height="20" clip-path="url(#avatar-clip)" 
                        href="data:image/png;base64,{repo['avatar_b64']}" />
                 """)
             else:
                 # Fallback circle
                 body.append(f"""
-                <circle cx="10" cy="8" r="10" fill="{colors['iconColor']}" opacity="0.5" />
+                <circle cx="10" cy="17.5" r="10" fill="{colors['iconColor']}" opacity="0.5" />
                 """)
 
-            # 2. Repo Name
+            # 2. Repo Name (centered vertically: baseline at ~22)
             full_name = repo["name"]
             display_name = full_name.split("/")[-1] if "/" in full_name else full_name
             name = encode_html(display_name)
             body.append(f"""
-            <text x="30" y="12.5" class="stat bold">{name}</text>
+            <text x="30" y="22" class="stat bold">{name}</text>
             """)
 
-            # 3. Rank (right aligned)
-            # Rough width calculation: 467 - 25 (left pad) - 25 (right pad)
-            right_edge = config.card_width - 50
+            # 3. Rank Level (right aligned in a circle)
+            right_edge = config.card_width - 75
             rank = repo["rank_level"]
+            
+            # Use ring color from theme or fallback to title color
+            ring_color = colors.get("ringColor", colors["titleColor"])
+            
             body.append(f"""
-            <g transform="translate({right_edge}, 12.5)">
-                <text text-anchor="end" class="stat bold">{rank}</text>
+            <g transform="translate({right_edge}, 7.5)">
+                <circle cx="10" cy="10" r="12" stroke="{ring_color}" stroke-width="2" fill="none" opacity="0.2" />
+                <text x="10" y="10" alignment-baseline="central" dominant-baseline="central" 
+                      text-anchor="middle" class="stat bold" style="font-size: 10px;">{rank}</text>
             </g>
             """)
             
