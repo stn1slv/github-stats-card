@@ -1,7 +1,7 @@
 # Development Plan: GitHub Stats Card
 
 ## Current Status
-The project is a fully functional, highly modular Python CLI tool. It supports **GitHub Stats** and **Top Languages** card generation with extensive customization. The architecture has been recently refactored into a clear 3-tier sub-package structure (`core`, `github`, `rendering`), ensuring high supportability and extendability.
+The project is a fully functional, highly modular Python CLI tool. It supports **GitHub Stats**, **Top Languages**, and **Top Contributions** card generation with extensive customization. The architecture has been recently refactored into a clear 3-tier sub-package structure (`core`, `github`, `rendering`), ensuring high supportability and extendability.
 
 ## Technical Stack
 - **Language:** Python 3.13+
@@ -23,12 +23,13 @@ src/
 │   └── utils.py         # General utility functions
 ├── github/              # GitHub-specific integration
 │   ├── client.py        # Centralized REST/GraphQL client
-│   ├── fetcher.py       # Stats Card data fetcher
+│   ├── fetcher.py       # Stats & Contrib Card data fetcher
 │   ├── langs_fetcher.py # Top Languages data fetcher
 │   └── rank.py          # Ranking algorithm (Stats Card)
 ├── rendering/           # SVG generation and visual logic
 │   ├── base.py          # Base SVG card renderer (shared)
 │   ├── colors.py        # Color parsing and utilities
+│   ├── contrib.py       # Contributor Card renderer
 │   ├── icons.py         # SVG icons
 │   ├── langs.py         # Top Languages Card renderer
 │   ├── stats.py         # Stats Card renderer
@@ -55,15 +56,17 @@ src/
 - All new features must align with the 3-tier sub-package architecture.
 
 ## Recent Changes
+- **Contributor Card (2026-02-08):** Added `contrib` subcommand to display top external contributions.
+  - Implemented `fetch_contributor_stats` with GraphQL filtering and sorting.
+  - Added Base64 avatar embedding for repository owners.
+  - Created `ContribCardConfig` and `rendering/contrib.py`.
 - **Modular Refactor:** Split the flat structure into `core`, `github`, and `rendering` packages.
 - **API Consolidation:** Introduced `GitHubClient` to manage all external requests.
 - **Config Automation:** Added `BaseConfig` to handle boilerplate CLI argument parsing.
 - **Type Hinting:** Migrated entire codebase to Python 3.10+ modern type hints.
-- **Animation Control:** Fixed inconsistencies in `disable_animations` logic.
 
 ## Future Work
-- **Planned: Repository Card:** Implement a third card type to display statistics for a specific repository.
-  - *Status:* Conceptual.
+- **Planned: Repository Card:** Implement a card type to display statistics for a specific repository (distinct from user contributions).
   - *Requirements:* New subcommand, `github/repo_fetcher.py`, and `rendering/repo.py`.
 - Add support for GitHub Discussions Answered and Achievements.
 - Improve SVG accessibility (aria-labels and screen reader support).

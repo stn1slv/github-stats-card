@@ -33,6 +33,9 @@ The project uses `uv` for all lifecycle tasks.
 
     # Generate Top Languages Card
     uv run github-stats-card top-langs -u <username> -o langs.svg
+
+    # Generate Contributor Card
+    uv run github-stats-card contrib -u <username> -o contrib.svg
     ```
 
 *   **Run Tests:**
@@ -60,7 +63,10 @@ The project uses `uv` for all lifecycle tasks.
 *   **Contribution:** Follow the guidelines in `CONTRIBUTING.md`. Use Conventional Commits for commit messages.
 
 ## Active Technologies
-- Python 3.13+ (Managed by `uv`) + Click (CLI), Requests (API), Built-in XML/SVG libraries (001-contributor-card)
+- Python 3.13+ (Managed by `uv`) + Click (CLI), Requests (API), Built-in XML/SVG libraries
 
 ## Recent Changes
-- 001-contributor-card: Added Python 3.13+ (Managed by `uv`) + Click (CLI), Requests (API), Built-in XML/SVG libraries
+### [Contributor Card] (2026-02-08)
+- Added `contrib` subcommand to display top external contributions.
+- Features: Star-based sorting, repository exclusion, embedded avatars.
+- New commands: `uv run github-stats-card contrib`

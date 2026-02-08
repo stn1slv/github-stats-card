@@ -34,3 +34,20 @@
 - `src/rendering/`: `base.py`, `colors.py`, `icons.py`, `langs.py`, `stats.py`, `themes.py`
 
 **Tasks Completed:** Architectural modernization and codebase cleanup.
+
+### [Contributor Card] - 2026-02-08
+**Branch:** `001-contributor-card`
+**Spec:** `specs/001-contributor-card/spec.md`
+
+**What was added:**
+- New `contrib` subcommand to generate a card showing top contributed repositories.
+- Logic to fetch external contributions, sort by stars, and filter exclusions.
+- Feature to download and embed repository owner avatars as Base64 images.
+- Support for customizable repository limits, themes, and exclusion patterns.
+
+**New Components:**
+- `src/rendering/contrib.py`: SVG renderer for the contributor card.
+- `src/core/config.py`: Added `ContribCardConfig` and `ContribFetchConfig`.
+- `src/github/fetcher.py`: Updated with `fetch_contributor_stats`.
+
+**Tasks Completed:** 22 tasks
