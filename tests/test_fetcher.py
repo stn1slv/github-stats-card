@@ -216,7 +216,9 @@ def test_fetch_error(mock_client):
 def test_fetch_contributor_stats_partial_error(mock_client):
     """Test that fetcher continues if one year fails with GraphQL errors."""
     # 1. Years response (2 years)
-    years_response = {"data": {"user": {"contributionsCollection": {"contributionYears": [2024, 2023]}}}}
+    years_response = {
+        "data": {"user": {"contributionsCollection": {"contributionYears": [2024, 2023]}}}
+    }
 
     # 2. 2024 response (errors)
     error_response = {"errors": [{"message": "Some error"}]}

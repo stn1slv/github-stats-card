@@ -6,7 +6,7 @@ from src.rendering.contrib import render_contrib_card
 
 def test_fetch_empty_repos():
     """Test fetcher behavior when no contributions are found."""
-    # This is handled by mock in integration tests, 
+    # This is handled by mock in integration tests,
     # but we can test the internal filtering logic if needed.
     pass
 
@@ -20,9 +20,9 @@ def test_render_empty_state():
     """Test rendering of the card with no repositories."""
     stats = {"repos": []}
     config = ContribCardConfig()
-    
+
     svg = render_contrib_card(stats, config)
-    
+
     assert "No contributions found" in svg
     assert 'height="100"' in svg
 
@@ -48,7 +48,7 @@ def test_render_limit_handling():
     config = ContribCardConfig(limit=5)
 
     svg = render_contrib_card(stats, config)
-    
+
     # Check that SVG height expands to fit all items passed in stats
     # 20 items * 35px + 55 header + 15 padding = 770
     assert 'height="770"' in svg

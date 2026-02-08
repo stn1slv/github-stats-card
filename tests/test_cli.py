@@ -28,9 +28,7 @@ def test_stats_command():
         }
         mock_render.return_value = "<svg>stats</svg>"
 
-        result = runner.invoke(
-            cli, ["stats", "-u", "user", "-t", "token", "-o", "stats.svg"]
-        )
+        result = runner.invoke(cli, ["stats", "-u", "user", "-t", "token", "-o", "stats.svg"])
 
         assert result.exit_code == 0
         assert "Generated" in result.stderr
@@ -46,9 +44,7 @@ def test_top_langs_command():
         mock_fetch.return_value = [{"name": "Python", "color": "#3572A5", "size": 100}]
         mock_render.return_value = "<svg>langs</svg>"
 
-        result = runner.invoke(
-            cli, ["top-langs", "-u", "user", "-t", "token", "-o", "langs.svg"]
-        )
+        result = runner.invoke(cli, ["top-langs", "-u", "user", "-t", "token", "-o", "langs.svg"])
 
         assert result.exit_code == 0
         assert "Generated" in result.stderr
@@ -66,9 +62,7 @@ def test_contrib_command():
         }
         mock_render.return_value = "<svg>contrib</svg>"
 
-        result = runner.invoke(
-            cli, ["contrib", "-u", "user", "-t", "token", "-o", "contrib.svg"]
-        )
+        result = runner.invoke(cli, ["contrib", "-u", "user", "-t", "token", "-o", "contrib.svg"])
 
         assert result.exit_code == 0
         assert "Generated" in result.stderr
