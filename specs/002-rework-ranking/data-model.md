@@ -28,26 +28,23 @@ class ContributorRepo(TypedDict):
 ```python
 def calculate_repo_rank(
     stars: int, 
-    total_contribs: int, 
-    years_active: int
+    total_repo_commits: int
 ) -> str:
     """
     Calculate rank for a single repository contribution.
     
     Args:
         stars: Repository star count
-        total_contribs: Sum of user's commits, PRs, issues, reviews
-        years_active: Count of years with >0 contributions (1-5)
+        total_repo_commits: Total commits in the repository (Project Magnitude)
         
     Returns:
         Rank string (e.g., "S", "A+", "B-")
     """
     # Logic:
     # 1. Determine base rank from stars (S > 10k, A > 1k, B > 100, C > 10, D > 1)
-    # 2. Calculate annual_rate = total_contribs / max(1, years_active)
-    # 3. Apply modifiers:
-    #    - Rate >= 50: Append "+"
-    #    - Rate < 5: Append "-"
+    # 2. Apply modifiers based on repo magnitude:
+    #    - Commits > 5000: Append "+"
+    #    - Commits < 100: Append "-"
     #    - Otherwise: No modifier
     pass
 ```

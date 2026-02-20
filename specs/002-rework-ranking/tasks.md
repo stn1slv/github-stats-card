@@ -14,13 +14,13 @@
 
 - [x] T002 Implement `calculate_repo_rank` core logic
   - **File**: `src/github/rank.py`
-  - **Description**: Implement the repository ranking function based on star thresholds (S>10k, A>1k...) and contribution modifiers (Rate>50 -> +, Rate<5 -> -).
+  - **Description**: Implement the repository ranking function based on star thresholds (S>10k, A>1k...) and repository magnitude modifiers (Commits>5k -> +, Commits<100 -> -).
   - **Source**: `data-model.md`
   - **Verification**: Unit tests in T003.
 
 - [x] T003 Add unit tests for ranking logic
   - **File**: `tests/test_rank.py`
-  - **Description**: Create comprehensive test cases for `calculate_repo_rank` covering all tiers (S-D) and modifiers (+, -, none).
+  - **Description**: Create comprehensive test cases for `calculate_repo_rank` covering all tiers (S-D) and modifiers (+, -, none) based on total repo commits.
   - **Source**: `spec.md` (FR-004)
   - **Verification**: `uv run pytest tests/test_rank.py` passes.
 
@@ -34,13 +34,13 @@
 
 - [x] T005 [US1] Update Fetcher Logic
   - **File**: `src/github/fetcher.py`
-  - **Description**: Update `fetch_contributor_stats` to track distinct active years, calculate rank using `calculate_repo_rank`, and assign to `rank_level`.
+  - **Description**: Update `fetch_contributor_stats` to fetch repository total commit count (via HEAD object history), calculate rank using `calculate_repo_rank`, and assign to `rank_level`.
   - **Source**: `plan.md` (Technical Context)
   - **Verification**: Unit tests in T006.
 
 - [x] T006 [US1] Update Fetcher Tests
   - **File**: `tests/test_fetcher.py`
-  - **Description**: Update API mocks to simulate multi-year data. Verify that `fetch_contributor_stats` correctly populates `rank_level`.
+  - **Description**: Update API mocks to simulate repo total commits. Verify that `fetch_contributor_stats` correctly populates `rank_level`.
   - **Source**: `spec.md` (SC-003)
   - **Verification**: `uv run pytest tests/test_fetcher.py` passes.
 
