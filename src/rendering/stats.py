@@ -18,7 +18,7 @@ from ..core.constants import (
 from ..github.fetcher import UserStats
 from ..core.i18n import get_translation
 from .icons import get_icon_svg
-from ..github.rank import calculate_rank
+from ..github.rank import calculate_user_rank
 from ..core.utils import encode_html, k_formatter
 
 
@@ -102,7 +102,7 @@ def render_stats_card(stats: UserStats, config: StatsCardConfig) -> str:
     )
 
     # Calculate rank
-    rank_result = calculate_rank(
+    rank_result = calculate_user_rank(
         commits=stats["totalCommits"],
         prs=stats["totalPRs"],
         issues=stats["totalIssues"],

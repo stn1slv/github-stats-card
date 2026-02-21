@@ -36,7 +36,7 @@ def log_normal_cdf(x: float) -> float:
     return x / (1 + x)
 
 
-def calculate_rank(
+def calculate_user_rank(
     commits: int,
     prs: int,
     issues: int,
@@ -64,7 +64,7 @@ def calculate_rank(
         Dictionary with 'level' (S, A+, A, A-, B+, B, B-, C+, C) and 'percentile'
 
     Examples:
-        >>> result = calculate_rank(1000, 100, 50, 10, 200, 50)
+        >>> result = calculate_user_rank(1000, 100, 50, 10, 200, 50)
         >>> result['level']
         'A+'
         >>> 0 <= result['percentile'] <= 100
