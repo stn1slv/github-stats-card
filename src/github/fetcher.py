@@ -9,7 +9,7 @@ from ..core.config import ContribFetchConfig
 from ..core.exceptions import FetchError
 from ..core.utils import is_repo_excluded
 from .client import GitHubClient
-from .rank import calculate_user_rank, calculate_repo_rank
+from .rank import calculate_repo_rank
 
 
 class ContributorRepo(TypedDict):
@@ -569,5 +569,3 @@ def fetch_contributor_stats(config: ContribFetchConfig) -> ContributorStats:
         )
 
     return {"repos": final_repos}
-
-

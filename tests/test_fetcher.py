@@ -45,12 +45,10 @@ def setup_mock_response(mock_client, repos_data):
             "stargazers": repo["stargazers"],
             "owner": repo["owner"],
         }
-        
+
         # Add total commit count if provided
         if "total_repo_commits" in repo:
-            repo_node["object"] = {
-                "history": {"totalCount": repo["total_repo_commits"]}
-            }
+            repo_node["object"] = {"history": {"totalCount": repo["total_repo_commits"]}}
 
         commit_contribs.append(
             {
@@ -84,7 +82,7 @@ def test_fetch_contributor_stats_success(mock_client):
             "stargazers": {"totalCount": 100},
             "owner": {"avatarUrl": "http://avatar1", "login": "owner"},
             "commits": 10,
-            "total_repo_commits": 200, # Neutral modifier
+            "total_repo_commits": 200,  # Neutral modifier
         },
         {
             "nameWithOwner": "owner/repo2",
@@ -92,7 +90,7 @@ def test_fetch_contributor_stats_success(mock_client):
             "stargazers": {"totalCount": 50},
             "owner": {"avatarUrl": "http://avatar2", "login": "owner"},
             "commits": 5,
-            "total_repo_commits": 20, # Low modifier (-)
+            "total_repo_commits": 20,  # Low modifier (-)
         },
     ]
     setup_mock_response(mock_client, repos)
@@ -314,9 +312,7 @@ def test_fetch_contributor_stats_deduplication(mock_client):
 def test_fetch_contributor_stats_rank_calculation(mock_client):
     """Test rank calculation with repo magnitude (total commits)."""
     # 1. Years response (2 years)
-    years_response = {
-        "data": {"user": {"contributionsCollection": {"contributionYears": [2024]}}}
-    }
+    years_response = {"data": {"user": {"contributionsCollection": {"contributionYears": [2024]}}}}
 
     # Repo S: S tier stars (>10k), >5000 repo commits -> S+
     repo_s = {
@@ -359,12 +355,11 @@ def test_fetch_contributor_stats_rank_calculation(mock_client):
     stats = fetch_contributor_stats(config)
 
     assert len(stats["repos"]) == 2
-    
+
     # Check Repo S
     s_repo = next(r for r in stats["repos"] if r["name"] == "owner/repo-s")
-    assert s_repo["rank_level"] == "S+" # 10001 Stars, 6000 commits
+    assert s_repo["rank_level"] == "S+"  # 10001 Stars, 6000 commits
 
     # Check Repo A
     a_repo = next(r for r in stats["repos"] if r["name"] == "owner/repo-a")
-    assert a_repo["rank_level"] == "A-" # 1001 Stars, 50 commits
-
+    assert a_repo["rank_level"] == "A-"  # 1001 Stars, 50 commits

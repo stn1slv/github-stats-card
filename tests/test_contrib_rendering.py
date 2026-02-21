@@ -102,4 +102,3 @@ def test_render_contrib_card_font_scaling():
     assert 'style="font-size: 8px;">A+<' in svg
     # S should have font-size: 10px
     assert 'style="font-size: 10px;">S<' in svg
-
