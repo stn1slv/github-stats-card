@@ -61,6 +61,11 @@ def _get_stat_definitions(stats: UserStats, locale: str) -> dict[str, dict[str, 
             "value": stats["contributedTo"],
             "icon": "contribs",
         },
+        "repos": {
+            "label": get_translation("statcard_repos", locale),
+            "value": stats["totalRepos"],
+            "icon": "contribs",
+        },
         "reviews": {
             "label": get_translation("statcard_reviews", locale),
             "value": stats["totalReviews"],

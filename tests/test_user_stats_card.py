@@ -17,6 +17,7 @@ def sample_stats() -> UserStats:
         "mergedPRs": 40,
         "totalIssues": 25,
         "totalStars": 200,
+        "totalRepos": 60,
         "contributedTo": 10,
         "followers": 50,
         "totalReviews": 5,
@@ -68,3 +69,17 @@ def test_render_user_stats_card_custom_title(sample_stats):
     config = UserStatsCardConfig(custom_title="My Progress")
     svg = render_user_stats_card(sample_stats, config)
     assert "My Progress" in svg
+
+
+def test_render_user_stats_card_repos_stat(sample_stats):
+    config = UserStatsCardConfig(show=["repos"])
+    svg = render_user_stats_card(sample_stats, config)
+    assert "Total Repositories" in svg
+    assert "60" in svg
+
+
+def test_render_user_stats_card_contribs_label(sample_stats):
+    config = UserStatsCardConfig()
+    svg = render_user_stats_card(sample_stats, config)
+    assert "Contributed To" in svg
+    assert "Total Repositories" not in svg

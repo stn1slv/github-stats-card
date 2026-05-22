@@ -42,6 +42,7 @@ class UserStats(TypedDict):
     mergedPRs: int
     totalIssues: int
     totalStars: int
+    totalRepos: int
     contributedTo: int
     followers: int
     totalReviews: int
@@ -114,6 +115,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                   ownerAffiliations: OWNER
                   orderBy: {direction: DESC, field: STARGAZERS}
                 ) {
+                  totalCount
                   nodes {
                     stargazers {
                       totalCount
@@ -165,6 +167,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                   ownerAffiliations: OWNER
                   orderBy: {direction: DESC, field: STARGAZERS}
                 ) {
+                  totalCount
                   nodes {
                     stargazers {
                       totalCount
@@ -193,6 +196,9 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
 
         except APIError as e:
             raise FetchError(f"Failed to fetch data from GitHub: {e}") from e
+
+        # Extract totalCount from the first page — pagination queries omit this field
+        total_repos = user["repositories"]["totalCount"]
 
         # Calculate total stars
         total_stars = sum(repo["stargazers"]["totalCount"] for repo in user["repositories"]["nodes"])
@@ -300,6 +306,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             "mergedPRs": user["mergedPullRequests"]["totalCount"],
             "totalIssues": total_issues,
             "totalStars": total_stars,
+            "totalRepos": total_repos,
             "contributedTo": user["repositoriesContributedTo"]["totalCount"],
             "followers": user["followers"]["totalCount"],
             "totalReviews": user["contributionsCollection"]["totalPullRequestReviewContributions"],

@@ -135,7 +135,7 @@ def cli() -> None:
 @click.option(
     "--show",
     default="",
-    help="Comma-separated additional stats to show (e.g., reviews,discussions_started)",
+    help="Comma-separated stats to show (e.g., repos, reviews, prs_merged, discussions_started, discussions_answered)",
 )
 @click.option(
     "--title-color",
@@ -263,8 +263,8 @@ def user_stats(
       # Hide specific stats
       github-stats-card user-stats -u octocat -o stats.svg --hide stars,prs
 
-      # Show additional stats
-      github-stats-card user-stats -u octocat -o stats.svg --show reviews,discussions_started
+      # Show additional stats (repos = total owned repositories)
+      github-stats-card user-stats -u octocat -o stats.svg --show repos,reviews,discussions_started
 
       # Backward-compatible alias
       github-stats-card stats -u octocat -o stats.svg

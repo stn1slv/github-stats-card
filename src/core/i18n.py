@@ -15,6 +15,7 @@ class Translations(TypedDict):
     statcard_prs_merged_percentage: str
     statcard_issues: str
     statcard_contribs: str
+    statcard_repos: str
     statcard_reviews: str
     statcard_discussions_started: str
     statcard_discussions_answered: str
@@ -30,7 +31,8 @@ TRANSLATIONS: dict[str, Translations] = {
         "statcard_prs_merged": "Total PRs Merged",
         "statcard_prs_merged_percentage": "PRs Merged",
         "statcard_issues": "Total Issues",
-        "statcard_contribs": "Total Repositories",
+        "statcard_contribs": "Contributed To",
+        "statcard_repos": "Total Repositories",
         "statcard_reviews": "Total Reviews",
         "statcard_discussions_started": "Discussions Started",
         "statcard_discussions_answered": "Discussions Answered",
