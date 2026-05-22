@@ -42,6 +42,7 @@ class UserStats(TypedDict):
     mergedPRs: int
     totalIssues: int
     totalStars: int
+    totalRepos: int
     contributedTo: int
     followers: int
     totalReviews: int
@@ -114,6 +115,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                   ownerAffiliations: OWNER
                   orderBy: {direction: DESC, field: STARGAZERS}
                 ) {
+                  totalCount
                   nodes {
                     stargazers {
                       totalCount
@@ -165,6 +167,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                   ownerAffiliations: OWNER
                   orderBy: {direction: DESC, field: STARGAZERS}
                 ) {
+                  totalCount
                   nodes {
                     stargazers {
                       totalCount
@@ -300,6 +303,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             "mergedPRs": user["mergedPullRequests"]["totalCount"],
             "totalIssues": total_issues,
             "totalStars": total_stars,
+            "totalRepos": user["repositories"]["totalCount"],
             "contributedTo": user["repositoriesContributedTo"]["totalCount"],
             "followers": user["followers"]["totalCount"],
             "totalReviews": user["contributionsCollection"]["totalPullRequestReviewContributions"],

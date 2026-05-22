@@ -36,6 +36,7 @@ def test_fetch_user_stats_success(mock_client):
                 "closedIssues": {"totalCount": 5},
                 "followers": {"totalCount": 100},
                 "repositories": {
+                    "totalCount": 60,
                     "nodes": [
                         {"stargazers": {"totalCount": 10}},
                         {"stargazers": {"totalCount": 20}},
@@ -58,6 +59,7 @@ def test_fetch_user_stats_success(mock_client):
     assert stats["totalStars"] == 30
     assert stats["totalCommits"] == 100
     assert stats["totalIssues"] == 10
+    assert stats["totalRepos"] == 60
 
 
 def test_fetch_user_stats_graphql_error(mock_client):
@@ -94,6 +96,7 @@ def test_fetch_user_stats_pagination(mock_client):
                 "closedIssues": {"totalCount": 0},
                 "followers": {"totalCount": 0},
                 "repositories": {
+                    "totalCount": 5,
                     "nodes": [{"stargazers": {"totalCount": 10}}],
                     "pageInfo": {"hasNextPage": True, "endCursor": "cursor1"},
                 },
@@ -136,6 +139,7 @@ def test_fetch_user_stats_with_discussions(mock_client):
                 "closedIssues": {"totalCount": 0},
                 "followers": {"totalCount": 0},
                 "repositories": {
+                    "totalCount": 0,
                     "nodes": [],
                     "pageInfo": {"hasNextPage": False, "endCursor": None},
                 },
