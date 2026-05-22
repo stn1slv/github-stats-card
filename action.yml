@@ -59,7 +59,12 @@ inputs:
     description: 'Comma-separated stats/languages to hide'
     required: false
     default: ''
-  
+
+  show:
+    description: 'Comma-separated optional stats to add - user-stats only (repos, reviews, prs_merged, prs_merged_percentage, discussions_started, discussions_answered)'
+    required: false
+    default: ''
+
   custom-title:
     description: 'Custom card title'
     required: false
@@ -196,6 +201,7 @@ runs:
           [ "${{ inputs.show-icons }}" = "true" ] && CMD="$CMD --show-icons"
           [ "${{ inputs.hide-rank }}" = "true" ] && CMD="$CMD --hide-rank"
           [ "${{ inputs.include-all-commits }}" = "true" ] && CMD="$CMD --include-all-commits"
+          [ -n "${{ inputs.show }}" ] && CMD="$CMD --show '${{ inputs.show }}'"
         fi
         
         # Add top-langs specific options
