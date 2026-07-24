@@ -725,6 +725,13 @@ def contrib(
         stats = fetch_contributor_stats(fetch_config)
 
         click.echo(f"Found {len(stats['repos'])} repositories", err=True)
+        if len(stats["repos"]) == 0 and token.startswith("ghs_"):
+            click.echo(
+                "⚠️ Note: GitHub Actions default GITHUB_TOKEN cannot access cross-repository contribution breakdowns "
+                "due to GitHub API scope restrictions.\nTo display external contributions on the contrib card, "
+                "please use a Personal Access Token (PAT with 'read:user' scope) stored as a repository secret.",
+                err=True,
+            )
 
         # Create rendering configuration
         render_config = ContribCardConfig.from_cli_args(
