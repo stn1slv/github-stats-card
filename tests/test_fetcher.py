@@ -429,3 +429,40 @@ def test_fetch_contributor_stats_pr_filtering(mock_client):
     assert stats["repos"][0]["name"] == "owner/repo"
     # Should count 2 (OPEN + MERGED)
     assert stats["repos"][0]["prs"] == 2
+
+
+def test_fetch_contributor_stats_partial_errors_with_data(mock_client):
+    """Test that fetcher processes valid data even when GraphQL returns partial errors."""
+    # 1. Years response
+    years_response = {"data": {"user": {"contributionsCollection": {"contributionYears": [2024]}}}}
+
+    # 2. Contributions response with both data and errors (e.g., SAML warning or broken node)
+    repo_node = {
+        "nameWithOwner": "owner/repo",
+        "isPrivate": False,
+        "stargazers": {"totalCount": 150},
+        "owner": {"avatarUrl": "http://avatar", "login": "owner"},
+    }
+
+    contribs_response = {
+        "errors": [{"message": "Could not resolve to a Repository", "type": "NOT_FOUND"}],
+        "data": {
+            "user": {
+                "contributionsCollection": {
+                    "commitContributionsByRepository": [{"repository": repo_node, "contributions": {"totalCount": 5}}],
+                    "pullRequestContributionsByRepository": [],
+                    "issueContributionsByRepository": [],
+                    "pullRequestReviewContributionsByRepository": [],
+                }
+            }
+        },
+    }
+
+    mock_client.async_graphql_query.side_effect = [years_response, contribs_response]
+
+    config = ContribFetchConfig(username="user", token="token", limit=5)
+    stats = fetch_contributor_stats(config)
+
+    assert len(stats["repos"]) == 1
+    assert stats["repos"][0]["name"] == "owner/repo"
+    assert stats["repos"][0]["commits"] == 5

@@ -468,10 +468,11 @@ async def _async_process_year_contributions(
             {"login": username, "from": from_date, "to": to_date},
         )
 
-        if "errors" in c_data:
+        user_data = c_data.get("data", {}).get("user") if isinstance(c_data, dict) and c_data.get("data") else None
+        if not user_data:
             return
 
-        collection = c_data.get("data", {}).get("user", {}).get("contributionsCollection")
+        collection = user_data.get("contributionsCollection")
         if not collection:
             return
 
@@ -488,34 +489,49 @@ async def _async_process_year_contributions(
         ]
 
         for gh_key, stats_key in active_contrib_types:
-            for item in collection.get(gh_key, []):
-                repo = item["repository"]
+            for item in collection.get(gh_key, []) or []:
+                repo = item.get("repository")
+                if not repo:
+                    continue
+
+                contribs = item.get("contributions") or {}
 
                 if gh_key == "pullRequestContributionsByRepository":
                     # Filter PRs by state: only OPEN and MERGED are considered contributions
-                    nodes = item.get("contributions", {}).get("nodes", [])
-                    count = sum(1 for node in nodes if node.get("pullRequest", {}).get("state") in ["OPEN", "MERGED"])
+                    nodes = contribs.get("nodes") or []
+                    count = sum(
+                        1 for node in nodes if (node.get("pullRequest") or {}).get("state") in ["OPEN", "MERGED"]
+                    )
                 else:
-                    count = item["contributions"]["totalCount"]
+                    count = contribs.get("totalCount", 0)
 
-                if count == 0 or repo["isPrivate"]:
-                    continue
-                if repo["owner"]["login"].lower() == username.lower():
+                if count == 0 or repo.get("isPrivate"):
                     continue
 
-                name = repo["nameWithOwner"]
+                owner = repo.get("owner") or {}
+                if (owner.get("login") or "").lower() == username.lower():
+                    continue
+
+                name = repo.get("nameWithOwner")
+                if not name:
+                    continue
+
+                stargazers = repo.get("stargazers") or {}
+                stars = stargazers.get("totalCount", 0)
+                avatar_url = owner.get("avatarUrl")
 
                 async with lock:
                     if name not in raw_repos_map:
                         total_repo_commits = 0
                         obj = repo.get("object")
                         if obj and "history" in obj:
-                            total_repo_commits = obj["history"]["totalCount"]
+                            history = obj.get("history") or {}
+                            total_repo_commits = history.get("totalCount", 0)
 
                         raw_repos_map[name] = {
                             "name": name,
-                            "stars": repo["stargazers"]["totalCount"],
-                            "avatar_url": repo["owner"]["avatarUrl"],
+                            "stars": stars,
+                            "avatar_url": avatar_url,
                             "commits": 0,
                             "prs": 0,
                             "issues": 0,
@@ -526,7 +542,8 @@ async def _async_process_year_contributions(
                         if raw_repos_map[name]["total_repo_commits"] == 0:
                             obj = repo.get("object")
                             if obj and "history" in obj:
-                                raw_repos_map[name]["total_repo_commits"] = obj["history"]["totalCount"]
+                                history = obj.get("history") or {}
+                                raw_repos_map[name]["total_repo_commits"] = history.get("totalCount", 0)
 
                     raw_repos_map[name][stats_key] += count
 
