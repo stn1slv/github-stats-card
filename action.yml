@@ -17,7 +17,7 @@ inputs:
     required: true
   
   token:
-    description: 'GitHub Personal Access Token (PAT with read:user scope required for contrib card)'
+    description: 'GitHub Personal Access Token (PAT with read:user scope required for user-stats and contrib cards; the default GITHUB_TOKEN cannot access contribution data)'
     required: true
   
   output:

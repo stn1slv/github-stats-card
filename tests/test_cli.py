@@ -5,6 +5,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from src.cli import cli
+from src.core.exceptions import FetchError
 
 
 def test_user_stats_command():
@@ -34,6 +35,21 @@ def test_user_stats_command():
 
         assert result.exit_code == 0
         assert "Generated" in result.stderr
+
+
+def test_user_stats_command_github_token_scope_hint():
+    """A restricted GitHub Actions token surfaces an actionable PAT hint, not just a raw error."""
+    runner = CliRunner()
+    with patch("src.cli.fetch_user_stats") as mock_fetch:
+        mock_fetch.side_effect = FetchError(
+            "Failed to fetch data from GitHub: GraphQL error: Resource not accessible by integration"
+        )
+
+        result = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "ghs_dummy", "-o", "stats.svg"])
+
+        assert result.exit_code == 1
+        assert "❌ Error fetching data" in result.stderr
+        assert "read:user" in result.stderr
 
 
 def test_stats_alias_command():

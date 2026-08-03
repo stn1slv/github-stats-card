@@ -13,6 +13,13 @@ The easiest way to use this tool is as a **GitHub Action**. It runs automaticall
 
 ### 1. Add to your workflow
 
+> [!IMPORTANT]
+> The `user-stats` and `contrib` cards read your contribution data (`contributionsCollection`),
+> which the default `secrets.GITHUB_TOKEN` **cannot** access — it fails with
+> `Resource not accessible by integration`. Create a **Personal Access Token (classic) with
+> the `read:user` scope**, save it as a repository secret (e.g. `PAT_TOKEN`), and pass it via
+> the `token` input. The `top-langs` card works with either token.
+
 Create or update `.github/workflows/update-stats.yml`:
 
 ```yaml
@@ -36,7 +43,7 @@ jobs:
         with:
           card-type: user-stats
           username: ${{ github.repository_owner }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}  # PAT with read:user scope (see note above)
           output: img/github-stats.svg
           theme: vue-dark
           show-icons: true

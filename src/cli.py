@@ -320,6 +320,14 @@ def user_stats(
 
     except FetchError as e:
         click.echo(f"❌ Error fetching data: {e}", err=True)
+        if token.startswith("ghs_") or "Resource not accessible by integration" in str(e):
+            click.echo(
+                "⚠️ Note: the user-stats card needs a token that can read contribution data "
+                "(contributionsCollection), which the GitHub Actions default GITHUB_TOKEN cannot access.\n"
+                "Please use a Personal Access Token (PAT with 'read:user' scope) stored as a repository "
+                "secret and pass it via the `token` input.",
+                err=True,
+            )
         sys.exit(1)
     except Exception as e:
         click.echo(f"❌ Unexpected error: {e}", err=True)
