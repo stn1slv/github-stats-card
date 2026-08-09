@@ -525,12 +525,13 @@ update_agent_file() {
     if [[ -L "$target_file" ]]; then
         resolved_file=$(cd "$(dirname "$target_file")" && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || true
     fi
-    case " ${UPDATED_AGENT_PATHS[*]-} " in
-        *" $resolved_file "*)
+    local seen_path
+    for seen_path in ${UPDATED_AGENT_PATHS[@]+"${UPDATED_AGENT_PATHS[@]}"}; do
+        if [[ "$seen_path" == "$resolved_file" ]]; then
             log_info "Skipping $agent_name: $resolved_file already updated in this run"
             return 0
-            ;;
-    esac
+        fi
+    done
     UPDATED_AGENT_PATHS+=("$resolved_file")
 
     log_info "Updating $agent_name context file: $target_file"

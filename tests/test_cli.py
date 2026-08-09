@@ -1,5 +1,6 @@
 """Integration tests for CLI commands."""
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -189,9 +190,10 @@ def test_action_yml_forwards_a_flag_the_contrib_command_accepts():
     assert 'ARGS+=(--contrib-types "$CONTRIB_TYPES")' in action
 
     # No `eval` in executable lines: re-parsing a built string is what made input
-    # interpolation exploitable. Comments may still mention it.
+    # interpolation exploitable. Comments may still mention it, and words like
+    # "evaluate" must not trip the check, so match eval as a whole word.
     executable = [ln for ln in action.splitlines() if not ln.strip().startswith("#")]
-    assert not [ln for ln in executable if "eval" in ln]
+    assert not [ln for ln in executable if re.search(r"\beval\b", ln)]
 
 
 def test_contrib_command_with_invalid_types():
