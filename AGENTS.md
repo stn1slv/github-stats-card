@@ -133,10 +133,10 @@ The project uses `uv` for all lifecycle tasks.
 - **Rationale:** The alias is the production path for every GitHub Actions consumer, not a convenience. Only the CLI-facing `--types` was ever tested, so renaming or dropping the alias would have passed CI and broken all automation.
 - **Gotcha:** `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts the literal `--contrib-types` appears both in `action.yml` and in `cli.commands["contrib"].params`. It catches the two regressions that matter (dropping the alias from `src/cli.py`, or switching `action.yml` to `--types`), but the flag name is hardcoded in the test, so renaming the option requires updating three places: `src/cli.py`, `action.yml`, and the test. A coordinated rename of only the first two still fails.
 
-### Shell-safe input passing in `action.yml` (2026-08-09)
-- **Decision:** `contrib-types` reaches the run step through a `CONTRIB_TYPES` environment variable and is dereferenced as `\"\$CONTRIB_TYPES\"` inside the command string, which `eval` expands.
-- **Rationale:** The step builds a command string and runs `eval $CMD`. Interpolating `${{ inputs.* }}` directly into that string lets a value containing a quote break out of the quoting.
-- **Gotcha:** Every other input in `action.yml` still uses direct interpolation. If you touch those lines, prefer the `env:` pattern rather than copying the older one.
+### `action.yml` builds an argument array, never a command string (2026-08-09)
+- **Decision:** Every input reaches the "Generate card" step as an environment variable declared under `env:`. The step collects options into a bash array (`ARGS+=(--flag "$VALUE")`) and invokes `github-stats-card "${ARGS[@]}"`. There is no `CMD` string and no `eval`.
+- **Rationale:** The step previously interpolated `${{ inputs.* }}` straight into a string it then ran through `eval`, so a value containing a single quote escaped the quoting and executed arbitrary shell. This is a published action, so a consumer can legitimately wire an input to untrusted data such as `custom-title: ${{ github.event.issue.title }}`, which made the injection reachable by an attacker rather than only by the workflow author.
+- **Gotcha:** Do not reintroduce `eval` or string concatenation when adding an option. Add an `env:` entry and an `ARGS+=(...)` line. `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts `eval` does not appear anywhere in `action.yml`, so a regression fails the suite.
 
 ### Token Scope Warning on Empty Contrib Results (2026-08-09)
 - **Decision:** When the `contrib` card returns zero repositories and the token starts with `ghs_`, the CLI prints a stderr hint directing the user to a PAT with `read:user` scope. Keep this behaviour; it is deliberate, not leftover debugging.

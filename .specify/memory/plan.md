@@ -57,7 +57,7 @@ src/
 
 ## Recent Changes
 - **Contribution Types Hardening (2026-08-09):** Follow-up on the filtering feature after an audit of shipped code against its artifacts. [Source: specs/003-filter-contrib-types]
-  - `action.yml` now passes `contrib-types` through a `CONTRIB_TYPES` environment variable and dereferences it as a quoted shell variable, instead of interpolating the input into the string that `eval` runs.
+  - `action.yml` no longer builds a command string and runs it through `eval`. All inputs arrive as environment variables and options are collected into a bash array passed directly to the CLI, which removes the shell-injection class entirely.
   - A test asserts the literal `--contrib-types` appears both in `action.yml` and in the `contrib` command's Click parameter list, so dropping the alias from the CLI or switching the Action to `--types` now fails the suite. The flag name is hardcoded in the test, so a rename must touch `src/cli.py`, `action.yml` and the test together.
   - `--help` now reports the `commits,prs` default; `README.md` documents the flag under CLI Usage.
   - Regression coverage added for PR state filtering against partial GraphQL payloads and for single-type query construction.

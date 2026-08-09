@@ -111,7 +111,7 @@
 An audit of the shipped code against this feature's artifacts found the automation path was its least protected part.
 
 - **`action.yml` forwards `--contrib-types`, the alias**, while every test exercised only `--types`. Renaming the flag would have passed CI and broken every Actions consumer. A test now asserts that literal appears both in `action.yml` and in the `contrib` command's Click parameter list.
-- **Shell injection hardening:** `contrib-types` is passed via a `CONTRIB_TYPES` env var and dereferenced as a quoted variable, rather than interpolated into the string `eval` executes.
+- **Shell injection hardening:** `contrib-types` was moved out of the interpolated command string. A follow-up removed `eval` from `action.yml` altogether, replacing the command string with a bash argument array fed from `env:` variables.
 - `--help` now reports the `commits,prs` default; `README.md` documents the flag; the 100-node PR ceiling note moved out of the transmitted GraphQL string.
 - Regression tests added for partial GraphQL payloads (field-level errors, `null`/missing PR nodes) and single-type query construction.
 - Feature artifacts reconciled with shipped behaviour, including a repaired code fence in `plan.md`.
