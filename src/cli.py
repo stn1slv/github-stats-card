@@ -664,7 +664,7 @@ def top_langs(
     "--contrib-types",
     "contribution_types",
     default="commits,prs",
-    help="Comma-separated list of contribution types to fetch (commits,prs,issues,reviews)",
+    help="Comma-separated list of contribution types to fetch: commits, prs, issues, reviews (default: commits,prs)",
 )
 def contrib(
     username: str,

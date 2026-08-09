@@ -1,11 +1,14 @@
 """Integration tests for CLI commands."""
 
+from pathlib import Path
 from unittest.mock import patch
 
 from click.testing import CliRunner
 
 from src.cli import cli
 from src.core.exceptions import FetchError
+
+ACTION_YML = Path(__file__).resolve().parents[1] / "action.yml"
 
 
 def test_user_stats_command():
@@ -111,6 +114,10 @@ def test_contrib_command():
         assert result.exit_code == 0
         assert "Generated" in result.stderr
 
+        # SC-003: omitting --types falls back to the documented default
+        fetch_config = mock_fetch.call_args[0][0]
+        assert fetch_config.contribution_types == ["commits", "prs"]
+
 
 def test_contrib_command_with_valid_types():
     runner = CliRunner()
@@ -131,6 +138,54 @@ def test_contrib_command_with_valid_types():
         # Verify fetch config was created with correctly parsed types
         fetch_config = mock_fetch.call_args[0][0]
         assert fetch_config.contribution_types == ["commits", "prs"]
+
+
+def test_contrib_command_with_contrib_types_alias():
+    """The --contrib-types alias is the spelling action.yml forwards, so it must stay valid."""
+    runner = CliRunner()
+    with (
+        patch("src.cli.fetch_contributor_stats") as mock_fetch,
+        patch("src.cli.render_contrib_card") as mock_render,
+    ):
+        mock_fetch.return_value = {"repos": [{"name": "owner/repo", "stars": 100, "avatar_b64": "base64"}]}
+        mock_render.return_value = "<svg>contrib</svg>"
+
+        result = runner.invoke(
+            cli, ["contrib", "-u", "user", "-t", "token", "-o", "contrib.svg", "--contrib-types", "issues,reviews"]
+        )
+
+        assert result.exit_code == 0
+
+        fetch_config = mock_fetch.call_args[0][0]
+        assert fetch_config.contribution_types == ["issues", "reviews"]
+
+
+def test_contrib_command_types_default_is_documented_in_help():
+    """FR-008: the default set must be discoverable from --help alone."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["contrib", "--help"])
+
+    assert result.exit_code == 0
+    # Collapse whitespace: Click wraps help text, so the default may straddle two lines
+    assert "default: commits,prs" in " ".join(result.output.split())
+
+
+def test_action_yml_forwards_a_flag_the_contrib_command_accepts():
+    """SC-002/SC-008: the automation wiring must not drift from the CLI it drives."""
+    action = ACTION_YML.read_text()
+
+    # The input is declared with the documented default
+    assert "contrib-types:" in action
+    assert "default: 'commits,prs'" in action
+
+    # Whatever spelling action.yml forwards must be a real option on the contrib command
+    contrib_opts = {opt for param in cli.commands["contrib"].params for opt in param.opts}
+    assert "--contrib-types" in action
+    assert "--contrib-types" in contrib_opts
+
+    # The value travels via env, so a quote in it cannot break out of the command string
+    assert "CONTRIB_TYPES: ${{ inputs.contrib-types }}" in action
+    assert '--contrib-types \\"\\$CONTRIB_TYPES\\"' in action
 
 
 def test_contrib_command_with_invalid_types():

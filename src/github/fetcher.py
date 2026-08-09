@@ -370,11 +370,13 @@ def _build_contrib_query(contribution_types: list[str]) -> str:
         contributions {{ totalCount }}
       }}""")
     if "prs" in contribution_types:
-        # For PRs, we need nodes to check their state (OPEN/MERGED)
+        # For PRs, we need nodes to check their state (OPEN/MERGED).
+        # `first: 100` caps retrieval per repository per year, so a repository with
+        # more than 100 PRs by this user in one year is undercounted. Accepted tradeoff.
         fragments.append(f"""
       pullRequestContributionsByRepository(maxRepositories: 100) {{
         {_REPO_DETAILS_FRAGMENT}
-        contributions(first: 100) {{  # NOTE: repos with >100 PRs/year will be undercounted
+        contributions(first: 100) {{
           nodes {{
             pullRequest {{
               state

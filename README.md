@@ -142,6 +142,23 @@ export GITHUB_TOKEN=ghp_your_token
 uv run github-stats-card user-stats -u your-username -o stats.svg
 ```
 
+### Filtering Contribution Types (`contrib` card)
+
+The `contrib` card counts only your commits and pull requests by default, so repositories where you merely opened an issue do not crowd out your code contributions. Use `--types` (or its alias `--contrib-types`) to change that. It takes a comma-separated list of `commits`, `prs`, `issues` and `reviews`, and an unrecognised value fails before any network request is made.
+
+```bash
+# Default behaviour: commits and pull requests
+uv run github-stats-card contrib -u your-username -o contrib.svg
+
+# Only direct commits
+uv run github-stats-card contrib -u your-username -o contrib.svg --types commits
+
+# Everything, including issues and code reviews
+uv run github-stats-card contrib -u your-username -o contrib.svg --types commits,prs,issues,reviews
+```
+
+Pull requests are counted only when they are open or merged; closed unmerged pull requests are ignored. In a GitHub Actions workflow the same setting is the `contrib-types` input.
+
 ---
 
 ## 🌐 GitHub Enterprise Server Support
