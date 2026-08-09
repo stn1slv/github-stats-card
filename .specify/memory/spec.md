@@ -16,6 +16,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 - **US-010:** As a user, I want the contributor card to rank repositories based on their popularity and magnitude, so that contributing to massive projects (like Debezium) is recognized with a high rank regardless of my commit count.
 - **US-011:** As a user generating a contributor card via the CLI, I want to specify which types of contributions to consider (e.g., only commits and pull requests) so that my card highlights only my active code contributions. [Source: specs/003-filter-contrib-types]
 - **US-012:** As a user running card generation via GitHub Actions, I want to configure contribution types via workflow inputs so that my profile is automatically updated with filtered contribution data. [Source: specs/003-filter-contrib-types]
+- **US-013:** As a user whose history spans repositories the provider cannot fully resolve (deleted repos, SSO-restricted orgs), I want the card to still reflect the contributions that were returned, so a single unresolvable entry does not blank out an entire year. [Source: specs/003-filter-contrib-types]
 
 ## Functional Requirements
 
@@ -37,7 +38,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 ### Card Type: Stats Card
 - **FR-005: User Stats Calculation**
   - Aggregate total commits, PRs (total/merged), issues, reviews, and stars.
-  - **User Ranking System:** Calculate a user rank (S+, S, A, B, etc.) using a percentile-based algorithm based on weighted contributions.
+  - **User Ranking System:** Calculate a user rank (S+, S, A, B, etc.) via `calculate_user_rank`, a percentile-based algorithm over weighted contributions. This is deliberately distinct from the contributor card's `calculate_repo_rank` and its output must stay stable. [Source: 002-rework-ranking]
 - **FR-006: Stats Rendering**
   - Render a vertical list of statistics with optional icons.
   - Display the calculated rank in a dedicated visual circle.
@@ -64,10 +65,11 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
   - **Sorting:** Sort repositories by star count (descending).
 - **FR-010: Contributor Rendering**
   - Render a list of top repositories (default 10) with repository name and repository-specific rank.
+  - **Default Title:** "Top Contributions", overridable via `--custom-title`. [Source: 001-contributor-card]
   - **Avatars:** Fetch and embed repository owner's avatar (Base64 encoded) as a circular icon next to the repository name.
   - **Fallback:** Use a generic placeholder icon if avatar fetching fails.
-  - **Visuals:** Match the visual style of existing cards (fonts, padding, themes).
-  - **Font Scaling:** Automatically scale down rank text font size if it exceeds single character (e.g. "S+" vs "S").
+  - **Visuals:** Match the visual style of existing cards (fonts, padding, themes). Default card width 467px (matching the stats card), fixed row height 35px, owner avatars 20x20px circular. [Source: 001-contributor-card]
+  - **Font Scaling:** Automatically scale down rank text font size if it exceeds single character (e.g. "S+" vs "S"): 8px for multi-character ranks, 10px otherwise, so the rank fits the existing circle. [Source: 002-rework-ranking]
 - **FR-011: Repository Ranking Logic** [Source: 002-rework-ranking]
   - **Base Rank:** Determined by Repository Star Count:
     - `S`: > 10,000 stars.
@@ -79,6 +81,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
     - `+`: Large/Mature (>5k commits).
     - `-`: Small/New Project (1-99 commits).
     - (None): Medium Project (100-5k commits) OR Unknown Magnitude (0 commits).
+  - **Invariant:** The user's global rank MUST NOT be applied to individual repositories. Repository ranks come from `calculate_repo_rank(stars, total_repo_commits)`; the global rank comes from `calculate_user_rank`. Conflating the two was the defect this feature fixed. [Source: 002-rework-ranking]
 - **FR-012: Repository Exclusion Wildcards** [Source: 001-contributor-card]
   - Repository exclusion MUST support wildcard (*) matching and owner-omitted matching (e.g., "awesome-*" matches any repo starting with "awesome-" regardless of owner). Matching MUST be case-insensitive.
 - **FR-013: Contribution Type Filtering (CLI)** [Source: specs/003-filter-contrib-types]
@@ -91,6 +94,14 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
   - System MUST expose a `contrib-types` input parameter in `action.yml` with a default of `commits,prs`.
 - **FR-017: PR State Filtering** [Source: specs/003-filter-contrib-types]
   - When `prs` are selected, the system MUST only count Pull Requests in `OPEN` or `MERGED` state, excluding `CLOSED` (unmerged) pull requests.
+- **FR-018: Contribution Types Option Spelling is a Released Contract** [Source: specs/003-filter-contrib-types]
+  - Both `--types` and `--contrib-types` MUST remain valid spellings of the same option.
+  - `action.yml` forwards the setting using **`--contrib-types`**, so that alias is the production path for automation, not an internal convenience. It MUST NOT be removed or renamed without a corresponding `action.yml` change, and the wiring MUST stay covered by tests.
+- **FR-019: Partial Provider Response Handling** [Source: specs/003-filter-contrib-types]
+  - When the provider returns field-level `errors` alongside a usable partial payload, the system MUST process the contributions present in that payload rather than discarding the response.
+  - Parsing MUST be defensive: absent `contributions`, absent `nodes`, and `null` `pullRequest` entries are skipped, never counted.
+- **FR-020: Discoverable CLI Defaults** [Source: specs/003-filter-contrib-types]
+  - The CLI MUST make the default set of contribution types (`commits,prs`) visible in its own `--help` output.
 
 ## Non-Functional Requirements
 - **NFR-001: Performance** - Card generation should be fast (fetching data is the bottleneck, mitigated by parallel async fetching using `httpx` and `asyncio`).
@@ -134,8 +145,14 @@ TypedDict containing raw statistics from GitHub API.
 ### Language (`src/github/langs_fetcher.py`)
 Dataclass representing an aggregated programming language.
 
-### ContributorRepo (`src/github/fetcher.py`)
-TypedDict representing a contributed repository with name, stars, rank level, and base64 avatar (`avatar_b64`).
+### ContributorRepo (`src/github/fetcher.py`) [Updated: 002-rework-ranking]
+TypedDict representing a contributed repository:
+- `name` (`owner/repo`), `stars`, `rank_level`, `avatar_b64` (`str | None`)
+- `commits`, `prs`, `issues`, `reviews` (`int`): the user's per-type contribution counts for that repository. These are the counters populated selectively by the `--types` filter (FR-013).
+- Note: `total_repo_commits` (project magnitude) is an intermediate value used to compute `rank_level`; it is not carried on the final entity.
+
+### ContributorStats (`src/github/fetcher.py`) [Source: 001-contributor-card]
+TypedDict wrapping the fetch result: `repos`, the sorted and sliced list of `ContributorRepo`. Returned by `fetch_contributor_stats` / `async_fetch_contributor_stats` and consumed by `render_contrib_card`.
 
 ## Architecture
 
@@ -167,3 +184,12 @@ TypedDict representing a contributed repository with name, stars, rank level, an
 - Invalid contribution type in `--types` flag (validation error before API call) [Source: specs/003-filter-contrib-types]
 - Empty `--types` flag (validation error: at least one type required) [Source: specs/003-filter-contrib-types]
 - PR contributions exceeding 100 nodes per repo/year (silently undercounted; documented limitation) [Source: specs/003-filter-contrib-types]
+- Field-level GraphQL errors returned alongside valid data (partial payload is processed, not discarded) [Source: specs/003-filter-contrib-types]
+- Unresolvable or `null` `pullRequest` nodes within a partial payload (skipped, remaining OPEN/MERGED PRs still counted) [Source: specs/003-filter-contrib-types]
+
+---
+
+### Revision: Archival Sync 2026-08-09
+- Re-archival of `specs/001-contributor-card` (originally archived 2026-02-08) merged three residual items: the default card title, the contributor card visual constants (467px width, 35px rows, 20x20px avatars), and the `ContributorStats` entity. All other 001 content was already present and was not duplicated.
+- Archival of `specs/003-filter-contrib-types` follow-up work (reconcile + converge + implement, 2026-08-09) added US-013, FR-018 through FR-020, and two partial-payload edge cases. The original 2026-03-22 archival remains valid; this covers what the feature gained afterwards.
+- Re-archival of `specs/002-rework-ranking` (originally archived 2026-02-20) merged four residual items: the full `ContributorRepo` field list including the per-type contribution counters, the invariant that the user's global rank must never be applied to individual repositories, the concrete rank font-scale values, and the explicit `calculate_user_rank` / `calculate_repo_rank` distinction. All other 002 content was already present and was not duplicated.

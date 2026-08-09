@@ -1,5 +1,6 @@
 """Integration tests for CLI commands."""
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -183,9 +184,16 @@ def test_action_yml_forwards_a_flag_the_contrib_command_accepts():
     assert "--contrib-types" in action
     assert "--contrib-types" in contrib_opts
 
-    # The value travels via env, so a quote in it cannot break out of the command string
+    # The value travels via env and is passed as an array element, never through a
+    # string that a shell re-parses, so a quote in it is data rather than syntax.
     assert "CONTRIB_TYPES: ${{ inputs.contrib-types }}" in action
-    assert '--contrib-types \\"\\$CONTRIB_TYPES\\"' in action
+    assert 'ARGS+=(--contrib-types "$CONTRIB_TYPES")' in action
+
+    # No `eval` in executable lines: re-parsing a built string is what made input
+    # interpolation exploitable. Comments may still mention it, and words like
+    # "evaluate" must not trip the check, so match eval as a whole word.
+    executable = [ln for ln in action.splitlines() if not ln.strip().startswith("#")]
+    assert not [ln for ln in executable if re.search(r"\beval\b", ln)]
 
 
 def test_contrib_command_with_invalid_types():

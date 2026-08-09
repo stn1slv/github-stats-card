@@ -93,6 +93,11 @@ The project uses `uv` for all lifecycle tasks.
 - **Rationale:** `AliasGroup` avoids duplicating the entire command definition. A simple `COMMAND_ALIASES` dict is the single source of truth for all aliases.
 - **Gotcha:** Adding a new alias requires only a dict entry in `COMMAND_ALIASES` — do not register a second Click command.
 
+### Contributor fetching uses `contributionsCollection` (2026-02-08)
+- **Decision:** `fetch_contributor_stats` sources contributed repositories from `contributionsCollection` (per-year `*ContributionsByRepository` fields), sorting and slicing by stars in Python.
+- **Rationale:** `contributionsCollection` exposes the per-type breakdown (commits, PRs, issues, reviews) that the `--types` filter and repo ranking both depend on.
+- **Gotcha:** `specs/001-contributor-card/research.md` proposes `repositoriesContributedTo(...)` instead. That research decision was superseded during implementation and never updated. Do not "fix" the fetcher to match it: `repositoriesContributedTo` returns no contribution-type breakdown, which would break `--types` and the repo rank modifier.
+
 ### SVG Image Embedding (2026-02-08)
 - **Decision:** External images (avatars) are Base64 encoded and embedded as data URIs. Circular masking is achieved using SVG `<clipPath>`.
 - **Rationale:** Ensures self-contained SVGs that work in restricted environments (like GitHub READMEs) without external dependencies or tracking.
@@ -117,6 +122,21 @@ The project uses `uv` for all lifecycle tasks.
 - **Decision:** Do not return early in `_async_process_year_contributions` when `"errors"` is present in GraphQL response dict `c_data`. Check for valid `c_data["data"]["user"]["contributionsCollection"]` payload instead.
 - **Rationale:** GitHub GraphQL API frequently returns field-level `errors` (e.g. unresolvable repos, SAML restrictions, deleted nodes) alongside valid partial `data`. Discarding the response drops valid contributions for that year.
 - **Gotcha:** Always use defensive null checks (e.g., `(item.get("contributions") or {}).get("nodes") or []`, `(node.get("pullRequest") or {}).get("state")`) when parsing partial payloads.
+
+### `CLAUDE.md` and `AGENTS.md` are one file (2026-08-09)
+- **Decision:** `AGENTS.md` is the real agent knowledge file. `CLAUDE.md` is a symlink to it. The former `GEMINI.md` was renamed to `AGENTS.md` and no symlink was left under the old name.
+- **Rationale:** `AGENTS.md` is the tool-neutral name and matches the repo's active integration (`agy`, per `.specify/integration.json`).
+- **Gotcha:** Writing to "both `CLAUDE.md` and `AGENTS.md`" writes the same content twice. Edit one. `update-agent-context.sh` now deduplicates by resolved path for the same reason, and its `GEMINI_FILE` variable points at `AGENTS.md` so the `gemini` argument cannot resurrect a divergent `GEMINI.md`.
+
+### `--contrib-types` alias is a released contract (2026-08-09)
+- **Decision:** The `contrib` types option keeps two spellings, `--types` and `--contrib-types`, declared on one Click option. `action.yml` forwards the value using `--contrib-types`.
+- **Rationale:** The alias is the production path for every GitHub Actions consumer, not a convenience. Only the CLI-facing `--types` was ever tested, so renaming or dropping the alias would have passed CI and broken all automation.
+- **Gotcha:** `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts the literal `--contrib-types` appears both in `action.yml` and in `cli.commands["contrib"].params`. It catches the two regressions that matter (dropping the alias from `src/cli.py`, or switching `action.yml` to `--types`), but the flag name is hardcoded in the test, so renaming the option requires updating three places: `src/cli.py`, `action.yml`, and the test. A coordinated rename of only the first two still fails.
+
+### `action.yml` builds an argument array, never a command string (2026-08-09)
+- **Decision:** Every input reaches the "Generate card" step as an environment variable declared under `env:`. The step collects options into a bash array (`ARGS+=(--flag "$VALUE")`) and invokes `github-stats-card "${ARGS[@]}"`. There is no `CMD` string and no `eval`.
+- **Rationale:** The step previously interpolated `${{ inputs.* }}` straight into a string it then ran through `eval`, so a value containing a single quote escaped the quoting and executed arbitrary shell. This is a published action, so a consumer can legitimately wire an input to untrusted data such as `custom-title: ${{ github.event.issue.title }}`, which made the injection reachable by an attacker rather than only by the workflow author.
+- **Gotcha:** Do not reintroduce `eval` or string concatenation when adding an option. Add an `env:` entry and an `ARGS+=(...)` line. `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts that no non-comment line in `action.yml` contains `eval` as a whole word, so a regression fails the suite.
 
 ### Token Scope Warning on Empty Contrib Results (2026-08-09)
 - **Decision:** When the `contrib` card returns zero repositories and the token starts with `ghs_`, the CLI prints a stderr hint directing the user to a PAT with `read:user` scope. Keep this behaviour; it is deliberate, not leftover debugging.

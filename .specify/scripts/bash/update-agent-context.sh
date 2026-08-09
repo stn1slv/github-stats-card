@@ -58,9 +58,13 @@ eval $(get_feature_paths)
 NEW_PLAN="$IMPL_PLAN"  # Alias for compatibility with existing code
 AGENT_TYPE="${1:-}"
 
-# Agent-specific file paths  
+# Tracks real paths already written this run, so agents sharing AGENTS.md
+# (and the CLAUDE.md symlink pointing at it) are not appended to repeatedly.
+UPDATED_AGENT_PATHS=()
+
+# Agent-specific file paths
 CLAUDE_FILE="$REPO_ROOT/CLAUDE.md"
-GEMINI_FILE="$REPO_ROOT/GEMINI.md"
+GEMINI_FILE="$REPO_ROOT/AGENTS.md"
 COPILOT_FILE="$REPO_ROOT/.github/agents/copilot-instructions.md"
 CURSOR_FILE="$REPO_ROOT/.cursor/rules/specify-rules.mdc"
 QWEN_FILE="$REPO_ROOT/QWEN.md"
@@ -512,7 +516,44 @@ update_agent_file() {
         log_error "update_agent_file requires target_file and agent_name parameters"
         return 1
     fi
-    
+
+    # Several agents share one file (AGENTS.md), and CLAUDE.md is a symlink to it.
+    # Resolve to the real path first: the writer below finishes with `mv`, which
+    # REPLACES a symlink with a regular file instead of writing through it. Writing
+    # to the link would silently split CLAUDE.md and AGENTS.md into two files.
+    # Only one hop is resolved, which covers this repository; a chain of links
+    # would need a loop here.
+    local resolved_file
+    resolved_file=$(cd "$(dirname "$target_file")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$target_file")") || resolved_file="$target_file"
+    if [[ -L "$target_file" ]]; then
+        local link_target
+        link_target=$(cd "$(dirname "$target_file")" 2>/dev/null && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || link_target=""
+        # Only follow the link when it stays inside the repository. A link pointing
+        # somewhere else (say ~/shared/CLAUDE.md) must not be written through, or
+        # this script would silently edit a file outside the project.
+        local repo_root_real
+        repo_root_real=$(cd "$REPO_ROOT" 2>/dev/null && pwd -P) || repo_root_real="$REPO_ROOT"
+        if [[ -n "$link_target" && "$link_target" == "$repo_root_real"/* ]]; then
+            resolved_file="$link_target"
+        else
+            [[ -n "$link_target" ]] && log_info "Not following $target_file outside the repository; writing to the link path"
+        fi
+    fi
+
+    # Skip if this run already wrote that real path, otherwise agents sharing a
+    # file get the same context appended two or three times.
+    local seen_path
+    for seen_path in ${UPDATED_AGENT_PATHS[@]+"${UPDATED_AGENT_PATHS[@]}"}; do
+        if [[ "$seen_path" == "$resolved_file" ]]; then
+            log_info "Skipping $agent_name: $resolved_file already updated in this run"
+            return 0
+        fi
+    done
+    UPDATED_AGENT_PATHS+=("$resolved_file")
+
+    # Read, write and log the real file, never the link.
+    target_file="$resolved_file"
+
     log_info "Updating $agent_name context file: $target_file"
     
     local project_name

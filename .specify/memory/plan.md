@@ -56,6 +56,11 @@ src/
 - All new features must align with the 3-tier sub-package architecture.
 
 ## Recent Changes
+- **Contribution Types Hardening (2026-08-09):** Follow-up on the filtering feature after an audit of shipped code against its artifacts. [Source: specs/003-filter-contrib-types]
+  - `action.yml` no longer builds a command string and runs it through `eval`. All inputs arrive as environment variables and options are collected into a bash array passed directly to the CLI, which removes the shell-injection class entirely.
+  - A test asserts the literal `--contrib-types` appears both in `action.yml` and in the `contrib` command's Click parameter list, so dropping the alias from the CLI or switching the Action to `--types` now fails the suite. The flag name is hardcoded in the test, so a rename must touch `src/cli.py`, `action.yml` and the test together.
+  - `--help` now reports the `commits,prs` default; `README.md` documents the flag under CLI Usage.
+  - Regression coverage added for PR state filtering against partial GraphQL payloads and for single-type query construction.
 - **Contribution Type Filtering (2026-03-22):** Added `--types`/`--contrib-types` CLI flag and `contrib-types` GitHub Actions input to filter contributor card by type (`commits`, `prs`, `issues`, `reviews`). Default: `commits,prs`. Dynamic GraphQL query building. PR state filtering (OPEN/MERGED only). [Source: specs/003-filter-contrib-types]
 - **Async HTTP Migration (2026-03-13):** Migrated HTTP boundary from `requests` to `httpx`.
   - Added async capabilities to `GitHubClient` for concurrent fetching.

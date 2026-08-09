@@ -176,68 +176,106 @@ runs:
       id: generate
       shell: bash
       env:
-        # Passed via env rather than interpolated into the script, so a value
-        # containing a quote cannot break out of the command string.
+        # Every input reaches the script as an environment variable. Nothing is
+        # interpolated into a string that a shell re-parses, so no input value
+        # can inject shell syntax, whatever a caller wires it to.
+        CARD_TYPE: ${{ inputs.card-type }}
+        USERNAME: ${{ inputs.username }}
+        TOKEN: ${{ inputs.token }}
+        OUTPUT: ${{ inputs.output }}
+        THEME: ${{ inputs.theme }}
+        HIDE_BORDER: ${{ inputs.hide-border }}
+        HIDE_TITLE: ${{ inputs.hide-title }}
+        DISABLE_ANIMATIONS: ${{ inputs.disable-animations }}
+        SHOW_ICONS: ${{ inputs.show-icons }}
+        HIDE_RANK: ${{ inputs.hide-rank }}
+        INCLUDE_ALL_COMMITS: ${{ inputs.include-all-commits }}
+        SHOW: ${{ inputs.show }}
+        LAYOUT: ${{ inputs.layout }}
+        LANGS_COUNT: ${{ inputs.langs-count }}
+        HIDE_PROGRESS: ${{ inputs.hide-progress }}
+        WEIGHTING: ${{ inputs.weighting }}
+        EXCLUDE_REPO: ${{ inputs.exclude-repo }}
+        LIMIT: ${{ inputs.limit }}
         CONTRIB_TYPES: ${{ inputs.contrib-types }}
+        HIDE: ${{ inputs.hide }}
+        CUSTOM_TITLE: ${{ inputs.custom-title }}
+        TITLE_COLOR: ${{ inputs.title-color }}
+        TEXT_COLOR: ${{ inputs.text-color }}
+        BG_COLOR: ${{ inputs.bg-color }}
+        BORDER_COLOR: ${{ inputs.border-color }}
+        CARD_WIDTH: ${{ inputs.card-width }}
+        BORDER_RADIUS: ${{ inputs.border-radius }}
       run: |
-        # Build command based on card type
-        if [ "${{ inputs.card-type }}" = "user-stats" ] || [ "${{ inputs.card-type }}" = "stats" ]; then
-          CMD="github-stats-card user-stats"
-        elif [ "${{ inputs.card-type }}" = "top-langs" ]; then
-          CMD="github-stats-card top-langs"
+        # Arguments are collected in an array and passed straight to the CLI.
+        # There is no command string and no eval, so quoting in a value is data,
+        # never syntax.
+        if [ "$CARD_TYPE" = "user-stats" ] || [ "$CARD_TYPE" = "stats" ]; then
+          SUBCOMMAND="user-stats"
+        elif [ "$CARD_TYPE" = "top-langs" ]; then
+          SUBCOMMAND="top-langs"
         else
-          CMD="github-stats-card contrib"
-        fi
-        
-        # Add common options
-        CMD="$CMD -u '${{ inputs.username }}'"
-        CMD="$CMD -t '${{ inputs.token }}'"
-        CMD="$CMD -o '${{ inputs.output }}'"
-        CMD="$CMD --theme ${{ inputs.theme }}"
-        
-        # Add flags
-        [ "${{ inputs.hide-border }}" = "true" ] && CMD="$CMD --hide-border"
-        [ "${{ inputs.hide-title }}" = "true" ] && CMD="$CMD --hide-title"
-        [ "${{ inputs.disable-animations }}" = "true" ] && CMD="$CMD --disable-animations"
-        
-        # Add stats-specific options
-        if [ "${{ inputs.card-type }}" = "user-stats" ] || [ "${{ inputs.card-type }}" = "stats" ]; then
-          [ "${{ inputs.show-icons }}" = "true" ] && CMD="$CMD --show-icons"
-          [ "${{ inputs.hide-rank }}" = "true" ] && CMD="$CMD --hide-rank"
-          [ "${{ inputs.include-all-commits }}" = "true" ] && CMD="$CMD --include-all-commits"
-          [ -n "${{ inputs.show }}" ] && CMD="$CMD --show '${{ inputs.show }}'"
-        fi
-        
-        # Add top-langs specific options
-        if [ "${{ inputs.card-type }}" = "top-langs" ]; then
-          CMD="$CMD --layout ${{ inputs.layout }}"
-          CMD="$CMD --langs-count ${{ inputs.langs-count }}"
-          [ "${{ inputs.hide-progress }}" = "true" ] && CMD="$CMD --hide-progress"
-          [ -n "${{ inputs.weighting }}" ] && CMD="$CMD --weighting ${{ inputs.weighting }}"
-          [ -n "${{ inputs.exclude-repo }}" ] && CMD="$CMD --exclude-repo '${{ inputs.exclude-repo }}'"
+          SUBCOMMAND="contrib"
         fi
 
-        # Add contrib-specific options
-        if [ "${{ inputs.card-type }}" = "contrib" ]; then
-          CMD="$CMD --limit ${{ inputs.limit }}"
-          [ -n "${{ inputs.exclude-repo }}" ] && CMD="$CMD --exclude-repo '${{ inputs.exclude-repo }}'"
-          [ -n "$CONTRIB_TYPES" ] && CMD="$CMD --contrib-types \"\$CONTRIB_TYPES\""
+        # Common options. Optional values are only appended when non-empty, so an
+        # explicitly empty input falls back to the CLI's own default instead of
+        # being passed through as "".
+        ARGS=("$SUBCOMMAND" -u "$USERNAME" -t "$TOKEN" -o "$OUTPUT")
+        [ -n "$THEME" ] && ARGS+=(--theme "$THEME")
+
+        # Flags
+        [ "$HIDE_BORDER" = "true" ] && ARGS+=(--hide-border)
+        [ "$HIDE_TITLE" = "true" ] && ARGS+=(--hide-title)
+        [ "$DISABLE_ANIMATIONS" = "true" ] && ARGS+=(--disable-animations)
+
+        # Stats-specific options
+        if [ "$CARD_TYPE" = "user-stats" ] || [ "$CARD_TYPE" = "stats" ]; then
+          [ "$SHOW_ICONS" = "true" ] && ARGS+=(--show-icons)
+          [ "$HIDE_RANK" = "true" ] && ARGS+=(--hide-rank)
+          [ "$INCLUDE_ALL_COMMITS" = "true" ] && ARGS+=(--include-all-commits)
+          [ -n "$SHOW" ] && ARGS+=(--show "$SHOW")
+          [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")
         fi
-        
-        # Add optional parameters
-        [ -n "${{ inputs.hide }}" ] && CMD="$CMD --hide '${{ inputs.hide }}'"
-        [ -n "${{ inputs.custom-title }}" ] && CMD="$CMD --custom-title '${{ inputs.custom-title }}'"
-        [ -n "${{ inputs.title-color }}" ] && CMD="$CMD --title-color ${{ inputs.title-color }}"
-        [ -n "${{ inputs.text-color }}" ] && CMD="$CMD --text-color ${{ inputs.text-color }}"
-        [ -n "${{ inputs.bg-color }}" ] && CMD="$CMD --bg-color '${{ inputs.bg-color }}'"
-        [ -n "${{ inputs.border-color }}" ] && CMD="$CMD --border-color ${{ inputs.border-color }}"
-        [ -n "${{ inputs.card-width }}" ] && CMD="$CMD --card-width ${{ inputs.card-width }}"
-        
-        CMD="$CMD --border-radius ${{ inputs.border-radius }}"
-        
-        # Execute command (mask token in output)
-        echo "Running: github-stats-card ${{ inputs.card-type }} -u ${{ inputs.username }} -o ${{ inputs.output }} ..."
-        eval $CMD
-        
-        # Set output
-        echo "svg-path=${{ inputs.output }}" >> $GITHUB_OUTPUT
+
+        # Top-langs specific options
+        if [ "$CARD_TYPE" = "top-langs" ]; then
+          [ -n "$LAYOUT" ] && ARGS+=(--layout "$LAYOUT")
+          [ -n "$LANGS_COUNT" ] && ARGS+=(--langs-count "$LANGS_COUNT")
+          [ "$HIDE_PROGRESS" = "true" ] && ARGS+=(--hide-progress)
+          [ -n "$WEIGHTING" ] && ARGS+=(--weighting "$WEIGHTING")
+          [ -n "$EXCLUDE_REPO" ] && ARGS+=(--exclude-repo "$EXCLUDE_REPO")
+          [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")
+        fi
+
+        # Contrib-specific options
+        if [ "$CARD_TYPE" = "contrib" ]; then
+          [ -n "$LIMIT" ] && ARGS+=(--limit "$LIMIT")
+          [ -n "$EXCLUDE_REPO" ] && ARGS+=(--exclude-repo "$EXCLUDE_REPO")
+          [ -n "$CONTRIB_TYPES" ] && ARGS+=(--contrib-types "$CONTRIB_TYPES")
+        fi
+
+        # Optional parameters common to every card type. `--hide` is NOT here: the
+        # contrib command has no such option, so passing it would abort the run.
+        [ -n "$CUSTOM_TITLE" ] && ARGS+=(--custom-title "$CUSTOM_TITLE")
+        [ -n "$TITLE_COLOR" ] && ARGS+=(--title-color "$TITLE_COLOR")
+        [ -n "$TEXT_COLOR" ] && ARGS+=(--text-color "$TEXT_COLOR")
+        [ -n "$BG_COLOR" ] && ARGS+=(--bg-color "$BG_COLOR")
+        [ -n "$BORDER_COLOR" ] && ARGS+=(--border-color "$BORDER_COLOR")
+        [ -n "$CARD_WIDTH" ] && ARGS+=(--card-width "$CARD_WIDTH")
+        [ -n "$BORDER_RADIUS" ] && ARGS+=(--border-radius "$BORDER_RADIUS")
+
+        # Execute (the token is never echoed)
+        echo "Running: github-stats-card $SUBCOMMAND -u $USERNAME -o $OUTPUT ..."
+        github-stats-card "${ARGS[@]}"
+
+        # Set output using the heredoc form with a randomised delimiter, so neither
+        # a newline nor a guessed delimiter in the value can inject extra outputs.
+        # printf rather than echo: a value of exactly "-n", "-e" or "-E" would be
+        # swallowed by the echo builtin as a flag.
+        OUTPUT_DELIM="GSC_EOF_${RANDOM}${RANDOM}${RANDOM}"
+        {
+          printf '%s\n' "svg-path<<$OUTPUT_DELIM"
+          printf '%s\n' "$OUTPUT"
+          printf '%s\n' "$OUTPUT_DELIM"
+        } >> "$GITHUB_OUTPUT"
