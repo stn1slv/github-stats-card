@@ -58,9 +58,13 @@ eval $(get_feature_paths)
 NEW_PLAN="$IMPL_PLAN"  # Alias for compatibility with existing code
 AGENT_TYPE="${1:-}"
 
-# Agent-specific file paths  
+# Tracks real paths already written this run, so agents sharing AGENTS.md
+# (and the CLAUDE.md symlink pointing at it) are not appended to repeatedly.
+UPDATED_AGENT_PATHS=()
+
+# Agent-specific file paths
 CLAUDE_FILE="$REPO_ROOT/CLAUDE.md"
-GEMINI_FILE="$REPO_ROOT/GEMINI.md"
+GEMINI_FILE="$REPO_ROOT/AGENTS.md"
 COPILOT_FILE="$REPO_ROOT/.github/agents/copilot-instructions.md"
 CURSOR_FILE="$REPO_ROOT/.cursor/rules/specify-rules.mdc"
 QWEN_FILE="$REPO_ROOT/QWEN.md"
@@ -512,7 +516,23 @@ update_agent_file() {
         log_error "update_agent_file requires target_file and agent_name parameters"
         return 1
     fi
-    
+
+    # Several agents share one file (AGENTS.md), and CLAUDE.md may be a symlink to it.
+    # Resolve to the real path and skip if this run already updated it, otherwise a
+    # single invocation appends the same context two or three times.
+    local resolved_file
+    resolved_file=$(cd "$(dirname "$target_file")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$target_file")") || resolved_file="$target_file"
+    if [[ -L "$target_file" ]]; then
+        resolved_file=$(cd "$(dirname "$target_file")" && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || true
+    fi
+    case " ${UPDATED_AGENT_PATHS[*]-} " in
+        *" $resolved_file "*)
+            log_info "Skipping $agent_name: $resolved_file already updated in this run"
+            return 0
+            ;;
+    esac
+    UPDATED_AGENT_PATHS+=("$resolved_file")
+
     log_info "Updating $agent_name context file: $target_file"
     
     local project_name

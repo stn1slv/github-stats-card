@@ -96,7 +96,7 @@ The project uses `uv` for all lifecycle tasks.
 ### Contributor fetching uses `contributionsCollection` (2026-02-08)
 - **Decision:** `fetch_contributor_stats` sources contributed repositories from `contributionsCollection` (per-year `*ContributionsByRepository` fields), sorting and slicing by stars in Python.
 - **Rationale:** `contributionsCollection` exposes the per-type breakdown (commits, PRs, issues, reviews) that the `--types` filter and repo ranking both depend on.
-- **Gotcha:** `specs/001-contributor-card/research.md` proposes `repositoriesContributedTo(...)` instead. That research decision was superseded during implementation and never updated. Do not "fix" the fetcher to match it — `repositoriesContributedTo` returns no contribution-type breakdown, which would break `--types` and the repo rank modifier.
+- **Gotcha:** `specs/001-contributor-card/research.md` proposes `repositoriesContributedTo(...)` instead. That research decision was superseded during implementation and never updated. Do not "fix" the fetcher to match it: `repositoriesContributedTo` returns no contribution-type breakdown, which would break `--types` and the repo rank modifier.
 
 ### SVG Image Embedding (2026-02-08)
 - **Decision:** External images (avatars) are Base64 encoded and embedded as data URIs. Circular masking is achieved using SVG `<clipPath>`.
@@ -123,10 +123,15 @@ The project uses `uv` for all lifecycle tasks.
 - **Rationale:** GitHub GraphQL API frequently returns field-level `errors` (e.g. unresolvable repos, SAML restrictions, deleted nodes) alongside valid partial `data`. Discarding the response drops valid contributions for that year.
 - **Gotcha:** Always use defensive null checks (e.g., `(item.get("contributions") or {}).get("nodes") or []`, `(node.get("pullRequest") or {}).get("state")`) when parsing partial payloads.
 
+### `CLAUDE.md` and `AGENTS.md` are one file (2026-08-09)
+- **Decision:** `AGENTS.md` is the real agent knowledge file. `CLAUDE.md` is a symlink to it. The former `GEMINI.md` was renamed to `AGENTS.md` and no symlink was left under the old name.
+- **Rationale:** `AGENTS.md` is the tool-neutral name and matches the repo's active integration (`agy`, per `.specify/integration.json`).
+- **Gotcha:** Writing to "both `CLAUDE.md` and `AGENTS.md`" writes the same content twice. Edit one. `update-agent-context.sh` now deduplicates by resolved path for the same reason, and its `GEMINI_FILE` variable points at `AGENTS.md` so the `gemini` argument cannot resurrect a divergent `GEMINI.md`.
+
 ### `--contrib-types` alias is a released contract (2026-08-09)
 - **Decision:** The `contrib` types option keeps two spellings, `--types` and `--contrib-types`, declared on one Click option. `action.yml` forwards the value using `--contrib-types`.
 - **Rationale:** The alias is the production path for every GitHub Actions consumer, not a convenience. Only the CLI-facing `--types` was ever tested, so renaming or dropping the alias would have passed CI and broken all automation.
-- **Gotcha:** `test_action_yml_forwards_a_flag_the_contrib_command_accepts` reads `action.yml` and checks the forwarded flag against `cli.commands["contrib"].params`. If you change the flag name, change both, or that test fails by design. Do not "simplify" it by hardcoding the expected string in the test.
+- **Gotcha:** `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts the literal `--contrib-types` appears both in `action.yml` and in `cli.commands["contrib"].params`. It catches the two regressions that matter (dropping the alias from `src/cli.py`, or switching `action.yml` to `--types`), but the flag name is hardcoded in the test, so renaming the option requires updating three places: `src/cli.py`, `action.yml`, and the test. A coordinated rename of only the first two still fails.
 
 ### Shell-safe input passing in `action.yml` (2026-08-09)
 - **Decision:** `contrib-types` reaches the run step through a `CONTRIB_TYPES` environment variable and is dereferenced as `\"\$CONTRIB_TYPES\"` inside the command string, which `eval` expands.

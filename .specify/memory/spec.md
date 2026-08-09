@@ -69,7 +69,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
   - **Avatars:** Fetch and embed repository owner's avatar (Base64 encoded) as a circular icon next to the repository name.
   - **Fallback:** Use a generic placeholder icon if avatar fetching fails.
   - **Visuals:** Match the visual style of existing cards (fonts, padding, themes). Default card width 467px (matching the stats card), fixed row height 35px, owner avatars 20x20px circular. [Source: 001-contributor-card]
-  - **Font Scaling:** Automatically scale down rank text font size if it exceeds single character (e.g. "S+" vs "S") — 8px for multi-character ranks, 10px otherwise, so the rank fits the existing circle. [Source: 002-rework-ranking]
+  - **Font Scaling:** Automatically scale down rank text font size if it exceeds single character (e.g. "S+" vs "S"): 8px for multi-character ranks, 10px otherwise, so the rank fits the existing circle. [Source: 002-rework-ranking]
 - **FR-011: Repository Ranking Logic** [Source: 002-rework-ranking]
   - **Base Rank:** Determined by Repository Star Count:
     - `S`: > 10,000 stars.
@@ -148,11 +148,11 @@ Dataclass representing an aggregated programming language.
 ### ContributorRepo (`src/github/fetcher.py`) [Updated: 002-rework-ranking]
 TypedDict representing a contributed repository:
 - `name` (`owner/repo`), `stars`, `rank_level`, `avatar_b64` (`str | None`)
-- `commits`, `prs`, `issues`, `reviews` — the user's per-type contribution counts for that repository. These are the counters populated selectively by the `--types` filter (FR-013).
+- `commits`, `prs`, `issues`, `reviews` (`int`): the user's per-type contribution counts for that repository. These are the counters populated selectively by the `--types` filter (FR-013).
 - Note: `total_repo_commits` (project magnitude) is an intermediate value used to compute `rank_level`; it is not carried on the final entity.
 
 ### ContributorStats (`src/github/fetcher.py`) [Source: 001-contributor-card]
-TypedDict wrapping the fetch result: `repos` — the sorted, sliced list of `ContributorRepo`. Returned by `fetch_contributor_stats` / `async_fetch_contributor_stats` and consumed by `render_contrib_card`.
+TypedDict wrapping the fetch result: `repos`, the sorted and sliced list of `ContributorRepo`. Returned by `fetch_contributor_stats` / `async_fetch_contributor_stats` and consumed by `render_contrib_card`.
 
 ## Architecture
 
