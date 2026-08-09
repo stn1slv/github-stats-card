@@ -50,7 +50,9 @@
 - `src/core/config.py`: Added `ContribCardConfig` and `ContribFetchConfig`.
 - `src/github/fetcher.py`: Updated with `fetch_contributor_stats`.
 
-**Tasks Completed:** 22 tasks
+**Tasks Completed:** 22/22 tasks
+
+**Re-archived 2026-08-09:** verified against the implementation. Three residual items merged into `spec.md` (default card title, visual constants, `ContributorStats` entity). No new changelog entry created — this feature was already archived on 2026-02-08.
 
 ### [Async HTTP Migration] - 2026-03-13
 **What was added:**
@@ -80,7 +82,9 @@
 - `src/github/rank.py`: Added `calculate_repo_rank`, updated `calculate_user_rank`.
 - `src/github/fetcher.py`: Updated fetch logic for repo magnitude.
 
-**Tasks Completed:** 9 tasks
+**Tasks Completed:** 9/9 tasks
+
+**Re-archived 2026-08-09:** verified against the implementation. Residual items merged into `spec.md` (full `ContributorRepo` field list, the "no global rank on repositories" invariant, concrete font-scale values). No new changelog entry created — this feature was already archived on 2026-02-20.
 
 ### [Filter Contribution Types] — 2026-03-22
 **Branch:** `003-filter-contrib-types`
@@ -101,4 +105,15 @@
 - `src/github/fetcher.py`: Dynamic `_build_contrib_query`, PR state filtering, type validation.
 - `action.yml`: Added `contrib-types` input.
 
-**Tasks Completed:** 20/20 tasks
+**Tasks Completed:** 30/30 tasks (20 original + T021–T030 from the 2026-08-09 follow-up)
+
+#### Follow-up — 2026-08-09 (reconcile → converge → implement)
+An audit of the shipped code against this feature's artifacts found the automation path was its least protected part.
+
+- **`action.yml` forwards `--contrib-types`, the alias**, while every test exercised only `--types`. Renaming the flag would have passed CI and broken every Actions consumer. A test now checks the forwarded flag against Click's own parameter list.
+- **Shell injection hardening:** `contrib-types` is passed via a `CONTRIB_TYPES` env var and dereferenced as a quoted variable, rather than interpolated into the string `eval` executes.
+- `--help` now reports the `commits,prs` default; `README.md` documents the flag; the 100-node PR ceiling note moved out of the transmitted GraphQL string.
+- Regression tests added for partial GraphQL payloads (field-level errors, `null`/missing PR nodes) and single-type query construction.
+- Feature artifacts reconciled with shipped behaviour, including a repaired code fence in `plan.md`.
+
+**Merged:** commit `2555f07`, merged to `main` as `c465483`.

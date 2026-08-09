@@ -56,6 +56,11 @@ src/
 - All new features must align with the 3-tier sub-package architecture.
 
 ## Recent Changes
+- **Contribution Types Hardening (2026-08-09):** Follow-up on the filtering feature after an audit of shipped code against its artifacts. [Source: specs/003-filter-contrib-types]
+  - `action.yml` now passes `contrib-types` through a `CONTRIB_TYPES` environment variable and dereferences it as a quoted shell variable, instead of interpolating the input into the string that `eval` runs.
+  - A test asserts the flag `action.yml` forwards is a real option on the `contrib` command, checked against Click's parameter list, so the automation wiring cannot silently drift from the CLI.
+  - `--help` now reports the `commits,prs` default; `README.md` documents the flag under CLI Usage.
+  - Regression coverage added for PR state filtering against partial GraphQL payloads and for single-type query construction.
 - **Contribution Type Filtering (2026-03-22):** Added `--types`/`--contrib-types` CLI flag and `contrib-types` GitHub Actions input to filter contributor card by type (`commits`, `prs`, `issues`, `reviews`). Default: `commits,prs`. Dynamic GraphQL query building. PR state filtering (OPEN/MERGED only). [Source: specs/003-filter-contrib-types]
 - **Async HTTP Migration (2026-03-13):** Migrated HTTP boundary from `requests` to `httpx`.
   - Added async capabilities to `GitHubClient` for concurrent fetching.
