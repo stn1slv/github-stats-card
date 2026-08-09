@@ -118,7 +118,13 @@ The project uses `uv` for all lifecycle tasks.
 - **Rationale:** GitHub GraphQL API frequently returns field-level `errors` (e.g. unresolvable repos, SAML restrictions, deleted nodes) alongside valid partial `data`. Discarding the response drops valid contributions for that year.
 - **Gotcha:** Always use defensive null checks (e.g., `(item.get("contributions") or {}).get("nodes") or []`, `(node.get("pullRequest") or {}).get("state")`) when parsing partial payloads.
 
+### Token Scope Warning on Empty Contrib Results (2026-08-09)
+- **Decision:** When the `contrib` card returns zero repositories and the token starts with `ghs_`, the CLI prints a stderr hint directing the user to a PAT with `read:user` scope. Keep this behaviour; it is deliberate, not leftover debugging.
+- **Rationale:** The Actions default `GITHUB_TOKEN` cannot read cross-repository contribution breakdowns, so the card silently renders empty. Without the hint the failure looks like "the user has no contributions" rather than a scope problem, which was the single most common source of confusion.
+- **Gotcha:** The hint is keyed off the `ghs_` prefix, so it never fires for a PAT. It writes to stderr so the SVG on stdout stays clean. Surfaced by `/speckit-converge` as unrequested code (T029) and justified here rather than removed.
+
 ## Recent Changes
+- [Token Scope Warning] (2026-08-09): Documented the existing `contrib` empty-result PAT hint as an intentional decision; hardened `action.yml` to pass `contrib-types` via `env` instead of direct interpolation. [Source: specs/003-filter-contrib-types Phase 6]
 - [Partial GraphQL Error Resilience] (2026-07-24): Fixed `contrib` card fetching to process valid partial GraphQL data when top-level `errors` are present; bumped version to 1.1.9. [PR #14]
 - [Contribution Filtering] (2026-03-22): Added `--types` flag to `contrib` card; default to `commits,prs`; implemented PR state filtering (OPEN/MERGED). [Source: specs/003-filter-contrib-types]
 ### [Code Quality Refactor] (2026-02-22)

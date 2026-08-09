@@ -175,6 +175,10 @@ runs:
     - name: Generate card
       id: generate
       shell: bash
+      env:
+        # Passed via env rather than interpolated into the script, so a value
+        # containing a quote cannot break out of the command string.
+        CONTRIB_TYPES: ${{ inputs.contrib-types }}
       run: |
         # Build command based on card type
         if [ "${{ inputs.card-type }}" = "user-stats" ] || [ "${{ inputs.card-type }}" = "stats" ]; then
@@ -217,7 +221,7 @@ runs:
         if [ "${{ inputs.card-type }}" = "contrib" ]; then
           CMD="$CMD --limit ${{ inputs.limit }}"
           [ -n "${{ inputs.exclude-repo }}" ] && CMD="$CMD --exclude-repo '${{ inputs.exclude-repo }}'"
-          [ -n "${{ inputs.contrib-types }}" ] && CMD="$CMD --contrib-types '${{ inputs.contrib-types }}'"
+          [ -n "$CONTRIB_TYPES" ] && CMD="$CMD --contrib-types \"\$CONTRIB_TYPES\""
         fi
         
         # Add optional parameters

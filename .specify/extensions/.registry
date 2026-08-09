@@ -2,42 +2,35 @@
   "schema_version": "1.0",
   "extensions": {
     "reconcile": {
-      "version": "1.0.0",
+      "version": "1.1.0",
       "source": "local",
-      "manifest_hash": "sha256:e1674fb7e16923c0e9e32eee78ef5a04626d05f092c56cc7c59e26fab07c210b",
+      "manifest_hash": "sha256:173a5eef590870e13493eddfcb3b058d22aefa68e4fa21824e979c2c30c06c29",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
-        "claude": [
+        "copilot": [
           "speckit.reconcile.run"
         ],
         "gemini": [
           "speckit.reconcile.run"
-        ],
-        "copilot": [
-          "speckit.reconcile.run"
         ]
       },
-      "installed_at": "2026-03-22T12:29:43.642879+00:00"
+      "registered_skills": [],
+      "installed_at": "2026-08-09T09:44:52.861746+00:00"
     },
     "archive": {
-      "version": "1.0.0",
+      "version": "1.1.1",
       "source": "local",
-      "manifest_hash": "sha256:ffa3831c0dd8aceeadad88efe4411676142d654dfbc1987e6e030ba6cdceb83e",
+      "manifest_hash": "sha256:99021c0ae82843e433cb466513500f3b45ccb2beb5cc34871c0d3567eb523532",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
-        "claude": [
-          "speckit.archive.run"
-        ],
-        "gemini": [
-          "speckit.archive.run"
-        ],
-        "copilot": [
+        "agy": [
           "speckit.archive.run"
         ]
       },
-      "installed_at": "2026-03-22T12:29:51.705919+00:00"
+      "registered_skills": [],
+      "installed_at": "2026-08-09T09:52:17.025443+00:00"
     }
   }
 }

@@ -6,7 +6,7 @@ The feature requires filtering the specific contribution types (commits, pull re
 ## Decisions
 
 ### 1. Handling CLI and Actions Input
-- **Decision:** Use a comma-separated string for the CLI flag (`--types` / `--contrib-types`) and GitHub Action input (`contrib_types`), which will be parsed into a `list[str]`. 
+- **Decision:** Use a comma-separated string for the CLI flag (`--types` / `--contrib-types`) and GitHub Action input (`contrib-types`), which will be parsed into a `list[str]`. 
 - **Rationale:** Standard practice for CLI tools to represent multiple enum-like options. It easily maps to environment variables and YAML inputs for GitHub actions. 
 - **Alternatives considered:** Multiple flag declarations (e.g., `--type commits --type prs`), but comma-separated is cleaner for GitHub actions configuration.
 

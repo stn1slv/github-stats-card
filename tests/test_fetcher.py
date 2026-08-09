@@ -375,6 +375,18 @@ def test_build_contrib_query():
     assert "issueContributionsByRepository" not in query_partial
     assert "pullRequestReviewContributionsByRepository" not in query_partial
 
+    # Single-type selections must omit every other block
+    query_issues = _build_contrib_query(["issues"])
+    assert "issueContributionsByRepository" in query_issues
+    assert "commitContributionsByRepository" not in query_issues
+    assert "pullRequestContributionsByRepository" not in query_issues
+    assert "pullRequestReviewContributionsByRepository" not in query_issues
+
+    query_reviews = _build_contrib_query(["reviews"])
+    assert "pullRequestReviewContributionsByRepository" in query_reviews
+    assert "commitContributionsByRepository" not in query_reviews
+    assert "issueContributionsByRepository" not in query_reviews
+
 
 def test_build_contrib_query_empty_raises():
     """Test that _build_contrib_query raises ValueError on empty list."""
@@ -466,3 +478,65 @@ def test_fetch_contributor_stats_partial_errors_with_data(mock_client):
     assert len(stats["repos"]) == 1
     assert stats["repos"][0]["name"] == "owner/repo"
     assert stats["repos"][0]["commits"] == 5
+
+
+def test_fetch_contributor_stats_pr_state_filter_on_partial_payload(mock_client):
+    """Test that PR state filtering survives a partial payload with null/missing nodes."""
+    # 1. Years response
+    years_response = {"data": {"user": {"contributionsCollection": {"contributionYears": [2024]}}}}
+
+    repo_node = {
+        "nameWithOwner": "owner/repo",
+        "isPrivate": False,
+        "stargazers": {"totalCount": 100},
+        "owner": {"avatarUrl": "url", "login": "owner"},
+        "object": {"history": {"totalCount": 100}},
+    }
+    broken_repo_node = {
+        "nameWithOwner": "owner/unresolvable",
+        "isPrivate": False,
+        "stargazers": {"totalCount": 10},
+        "owner": {"avatarUrl": "url", "login": "owner"},
+        "object": None,
+    }
+
+    # 2. Field-level errors alongside data whose PR nodes are partly unresolvable
+    contribs_response = {
+        "errors": [{"message": "Could not resolve to a Repository", "type": "NOT_FOUND"}],
+        "data": {
+            "user": {
+                "contributionsCollection": {
+                    "commitContributionsByRepository": [],
+                    "pullRequestContributionsByRepository": [
+                        {
+                            "repository": repo_node,
+                            "contributions": {
+                                "nodes": [
+                                    {"pullRequest": {"state": "MERGED"}},
+                                    {"pullRequest": None},  # Unresolvable node, must be skipped
+                                    {},  # Missing pullRequest key, must be skipped
+                                    {"pullRequest": {"state": "CLOSED"}},  # Unmerged, must be skipped
+                                    {"pullRequest": {"state": "OPEN"}},
+                                ]
+                            },
+                        },
+                        # Whole contributions payload missing: must be skipped, not raise
+                        {"repository": broken_repo_node, "contributions": None},
+                    ],
+                    "issueContributionsByRepository": [],
+                    "pullRequestReviewContributionsByRepository": [],
+                }
+            }
+        },
+    }
+
+    mock_client.async_graphql_query.side_effect = [years_response, contribs_response]
+
+    config = ContribFetchConfig(username="user", token="token", limit=5, contribution_types=["prs"])
+    stats = fetch_contributor_stats(config)
+
+    # Only the repo with countable PRs survives; the one with no contributions is dropped
+    assert len(stats["repos"]) == 1
+    assert stats["repos"][0]["name"] == "owner/repo"
+    # Should count 2 (MERGED + OPEN), ignoring null, missing and CLOSED nodes
+    assert stats["repos"][0]["prs"] == 2
