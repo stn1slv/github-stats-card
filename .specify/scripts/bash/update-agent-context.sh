@@ -526,7 +526,18 @@ update_agent_file() {
     local resolved_file
     resolved_file=$(cd "$(dirname "$target_file")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$target_file")") || resolved_file="$target_file"
     if [[ -L "$target_file" ]]; then
-        resolved_file=$(cd "$(dirname "$target_file")" && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || resolved_file="$target_file"
+        local link_target
+        link_target=$(cd "$(dirname "$target_file")" 2>/dev/null && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || link_target=""
+        # Only follow the link when it stays inside the repository. A link pointing
+        # somewhere else (say ~/shared/CLAUDE.md) must not be written through, or
+        # this script would silently edit a file outside the project.
+        local repo_root_real
+        repo_root_real=$(cd "$REPO_ROOT" 2>/dev/null && pwd -P) || repo_root_real="$REPO_ROOT"
+        if [[ -n "$link_target" && "$link_target" == "$repo_root_real"/* ]]; then
+            resolved_file="$link_target"
+        else
+            [[ -n "$link_target" ]] && log_info "Not following $target_file outside the repository; writing to the link path"
+        fi
     fi
 
     # Skip if this run already wrote that real path, otherwise agents sharing a

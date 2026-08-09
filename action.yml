@@ -235,6 +235,7 @@ runs:
           [ "$HIDE_RANK" = "true" ] && ARGS+=(--hide-rank)
           [ "$INCLUDE_ALL_COMMITS" = "true" ] && ARGS+=(--include-all-commits)
           [ -n "$SHOW" ] && ARGS+=(--show "$SHOW")
+          [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")
         fi
 
         # Top-langs specific options
@@ -244,6 +245,7 @@ runs:
           [ "$HIDE_PROGRESS" = "true" ] && ARGS+=(--hide-progress)
           [ -n "$WEIGHTING" ] && ARGS+=(--weighting "$WEIGHTING")
           [ -n "$EXCLUDE_REPO" ] && ARGS+=(--exclude-repo "$EXCLUDE_REPO")
+          [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")
         fi
 
         # Contrib-specific options
@@ -253,8 +255,8 @@ runs:
           [ -n "$CONTRIB_TYPES" ] && ARGS+=(--contrib-types "$CONTRIB_TYPES")
         fi
 
-        # Optional parameters
-        [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")
+        # Optional parameters common to every card type. `--hide` is NOT here: the
+        # contrib command has no such option, so passing it would abort the run.
         [ -n "$CUSTOM_TITLE" ] && ARGS+=(--custom-title "$CUSTOM_TITLE")
         [ -n "$TITLE_COLOR" ] && ARGS+=(--title-color "$TITLE_COLOR")
         [ -n "$TEXT_COLOR" ] && ARGS+=(--text-color "$TEXT_COLOR")
@@ -269,9 +271,11 @@ runs:
 
         # Set output using the heredoc form with a randomised delimiter, so neither
         # a newline nor a guessed delimiter in the value can inject extra outputs.
+        # printf rather than echo: a value of exactly "-n", "-e" or "-E" would be
+        # swallowed by the echo builtin as a flag.
         OUTPUT_DELIM="GSC_EOF_${RANDOM}${RANDOM}${RANDOM}"
         {
-          echo "svg-path<<$OUTPUT_DELIM"
-          echo "$OUTPUT"
-          echo "$OUTPUT_DELIM"
+          printf '%s\n' "svg-path<<$OUTPUT_DELIM"
+          printf '%s\n' "$OUTPUT"
+          printf '%s\n' "$OUTPUT_DELIM"
         } >> "$GITHUB_OUTPUT"
