@@ -136,7 +136,7 @@ The project uses `uv` for all lifecycle tasks.
 ### `action.yml` builds an argument array, never a command string (2026-08-09)
 - **Decision:** Every input reaches the "Generate card" step as an environment variable declared under `env:`. The step collects options into a bash array (`ARGS+=(--flag "$VALUE")`) and invokes `github-stats-card "${ARGS[@]}"`. There is no `CMD` string and no `eval`.
 - **Rationale:** The step previously interpolated `${{ inputs.* }}` straight into a string it then ran through `eval`, so a value containing a single quote escaped the quoting and executed arbitrary shell. This is a published action, so a consumer can legitimately wire an input to untrusted data such as `custom-title: ${{ github.event.issue.title }}`, which made the injection reachable by an attacker rather than only by the workflow author.
-- **Gotcha:** Do not reintroduce `eval` or string concatenation when adding an option. Add an `env:` entry and an `ARGS+=(...)` line. `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts `eval` does not appear anywhere in `action.yml`, so a regression fails the suite.
+- **Gotcha:** Do not reintroduce `eval` or string concatenation when adding an option. Add an `env:` entry and an `ARGS+=(...)` line. `test_action_yml_forwards_a_flag_the_contrib_command_accepts` asserts that no non-comment line in `action.yml` contains `eval` as a whole word, so a regression fails the suite.
 
 ### Token Scope Warning on Empty Contrib Results (2026-08-09)
 - **Decision:** When the `contrib` card returns zero repositories and the token starts with `ghs_`, the CLI prints a stderr hint directing the user to a PAT with `read:user` scope. Keep this behaviour; it is deliberate, not leftover debugging.

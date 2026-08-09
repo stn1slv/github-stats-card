@@ -517,14 +517,20 @@ update_agent_file() {
         return 1
     fi
 
-    # Several agents share one file (AGENTS.md), and CLAUDE.md may be a symlink to it.
-    # Resolve to the real path and skip if this run already updated it, otherwise a
-    # single invocation appends the same context two or three times.
+    # Several agents share one file (AGENTS.md), and CLAUDE.md is a symlink to it.
+    # Resolve to the real path first: the writer below finishes with `mv`, which
+    # REPLACES a symlink with a regular file instead of writing through it. Writing
+    # to the link would silently split CLAUDE.md and AGENTS.md into two files.
+    # Only one hop is resolved, which covers this repository; a chain of links
+    # would need a loop here.
     local resolved_file
     resolved_file=$(cd "$(dirname "$target_file")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$target_file")") || resolved_file="$target_file"
     if [[ -L "$target_file" ]]; then
-        resolved_file=$(cd "$(dirname "$target_file")" && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || true
+        resolved_file=$(cd "$(dirname "$target_file")" && cd "$(dirname "$(readlink "$target_file")")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$(readlink "$target_file")")") || resolved_file="$target_file"
     fi
+
+    # Skip if this run already wrote that real path, otherwise agents sharing a
+    # file get the same context appended two or three times.
     local seen_path
     for seen_path in ${UPDATED_AGENT_PATHS[@]+"${UPDATED_AGENT_PATHS[@]}"}; do
         if [[ "$seen_path" == "$resolved_file" ]]; then
@@ -533,6 +539,9 @@ update_agent_file() {
         fi
     done
     UPDATED_AGENT_PATHS+=("$resolved_file")
+
+    # Read, write and log the real file, never the link.
+    target_file="$resolved_file"
 
     log_info "Updating $agent_name context file: $target_file"
     

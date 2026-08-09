@@ -218,8 +218,11 @@ runs:
           SUBCOMMAND="contrib"
         fi
 
-        # Common options
-        ARGS=("$SUBCOMMAND" -u "$USERNAME" -t "$TOKEN" -o "$OUTPUT" --theme "$THEME")
+        # Common options. Optional values are only appended when non-empty, so an
+        # explicitly empty input falls back to the CLI's own default instead of
+        # being passed through as "".
+        ARGS=("$SUBCOMMAND" -u "$USERNAME" -t "$TOKEN" -o "$OUTPUT")
+        [ -n "$THEME" ] && ARGS+=(--theme "$THEME")
 
         # Flags
         [ "$HIDE_BORDER" = "true" ] && ARGS+=(--hide-border)
@@ -236,8 +239,8 @@ runs:
 
         # Top-langs specific options
         if [ "$CARD_TYPE" = "top-langs" ]; then
-          ARGS+=(--layout "$LAYOUT")
-          ARGS+=(--langs-count "$LANGS_COUNT")
+          [ -n "$LAYOUT" ] && ARGS+=(--layout "$LAYOUT")
+          [ -n "$LANGS_COUNT" ] && ARGS+=(--langs-count "$LANGS_COUNT")
           [ "$HIDE_PROGRESS" = "true" ] && ARGS+=(--hide-progress)
           [ -n "$WEIGHTING" ] && ARGS+=(--weighting "$WEIGHTING")
           [ -n "$EXCLUDE_REPO" ] && ARGS+=(--exclude-repo "$EXCLUDE_REPO")
@@ -245,7 +248,7 @@ runs:
 
         # Contrib-specific options
         if [ "$CARD_TYPE" = "contrib" ]; then
-          ARGS+=(--limit "$LIMIT")
+          [ -n "$LIMIT" ] && ARGS+=(--limit "$LIMIT")
           [ -n "$EXCLUDE_REPO" ] && ARGS+=(--exclude-repo "$EXCLUDE_REPO")
           [ -n "$CONTRIB_TYPES" ] && ARGS+=(--contrib-types "$CONTRIB_TYPES")
         fi
@@ -258,11 +261,17 @@ runs:
         [ -n "$BG_COLOR" ] && ARGS+=(--bg-color "$BG_COLOR")
         [ -n "$BORDER_COLOR" ] && ARGS+=(--border-color "$BORDER_COLOR")
         [ -n "$CARD_WIDTH" ] && ARGS+=(--card-width "$CARD_WIDTH")
-        ARGS+=(--border-radius "$BORDER_RADIUS")
+        [ -n "$BORDER_RADIUS" ] && ARGS+=(--border-radius "$BORDER_RADIUS")
 
         # Execute (the token is never echoed)
         echo "Running: github-stats-card $SUBCOMMAND -u $USERNAME -o $OUTPUT ..."
         github-stats-card "${ARGS[@]}"
 
-        # Set output
-        echo "svg-path=$OUTPUT" >> "$GITHUB_OUTPUT"
+        # Set output using the heredoc form with a randomised delimiter, so neither
+        # a newline nor a guessed delimiter in the value can inject extra outputs.
+        OUTPUT_DELIM="GSC_EOF_${RANDOM}${RANDOM}${RANDOM}"
+        {
+          echo "svg-path<<$OUTPUT_DELIM"
+          echo "$OUTPUT"
+          echo "$OUTPUT_DELIM"
+        } >> "$GITHUB_OUTPUT"
