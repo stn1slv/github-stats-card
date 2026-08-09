@@ -1,8 +1,8 @@
 schema_version: "1.0"
 extension:
   id: "reconcile"
-  name: "Spec-Kit Reconcile"
-  version: "1.0.0"
+  name: "Reconcile Extension"
+  version: "1.1.0"
   description: "Reconcile implementation drift by surgically updating the feature's own spec, plan, and tasks."
   author: "Stanislav Deviatov"
   repository: "https://github.com/stn1slv/spec-kit-reconcile"

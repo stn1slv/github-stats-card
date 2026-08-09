@@ -1,9 +1,12 @@
 ---
-description: "Archive a feature specification into main project memory after merge, resolving gaps and conflicts"
-scripts:
-  sh: ../../scripts/bash/check-prerequisites.sh --json --paths-only
-  ps: ../../scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
+name: speckit-archive-run
+description: Archive a feature specification into main project memory after merge, resolving gaps and conflicts
+compatibility: Requires spec-kit project structure with .specify/ directory
+metadata:
+  author: github-spec-kit
+  source: archive:commands/archive.md
 ---
+
 Act as the **Chief Software Architect** and **Documentation Maintainer**.
 A feature has been merged into the `main` branch. Your goal is to **archive** the feature specification into the main project memory — ensuring completeness, resolving conflicts, closing gaps, and respecting the project constitution.
 
@@ -59,14 +62,14 @@ If **several** scope modifiers are supplied, the scope is their **union** — `-
 
 Resolve paths **in this order** — each step depends on the one before it, so do not reorder them.
 
-**1. `REPO_ROOT`.** Run `{SCRIPT}` and take `REPO_ROOT` from its output.
+**1. `REPO_ROOT`.** Run `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` and take `REPO_ROOT` from its output.
 
-- **If `{SCRIPT}` is missing**, stop and inform the user. The script ships with Spec-Kit, so its absence means this is not an initialized Spec-Kit project and nothing else in this command can be relied on.
-- **If `{SCRIPT}` runs but exits non-zero** — commonly `Feature directory not found` on a clean `main` checkout with no `.specify/feature.json` — this is **not** fatal. Its feature directory is not used anyway (see step 2). Recover `REPO_ROOT` by resolving the first token of `$ARGUMENTS` against the **current working directory** and walking up to the nearest ancestor containing `.specify/`. Note the fallback in the Step 6 report. Stop only if no such ancestor exists.
+- **If `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` is missing**, stop and inform the user. The script ships with Spec-Kit, so its absence means this is not an initialized Spec-Kit project and nothing else in this command can be relied on.
+- **If `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` runs but exits non-zero** — commonly `Feature directory not found` on a clean `main` checkout with no `.specify/feature.json` — this is **not** fatal. Its feature directory is not used anyway (see step 2). Recover `REPO_ROOT` by resolving the first token of `$ARGUMENTS` against the **current working directory** and walking up to the nearest ancestor containing `.specify/`. Note the fallback in the Step 6 report. Stop only if no such ancestor exists.
 
 **2. `FEATURE_DIR` — the argument always wins.** Resolve the first token of `$ARGUMENTS` under `REPO_ROOT`, applying the **ambiguous first token** check from Input Parsing at this point: it must match exactly one existing directory, and a numeric prefix such as `specs/001` may expand only when the match is unique. That directory is `FEATURE_DIR`.
 
-Ignore whatever feature directory `{SCRIPT}` reports. The script resolves it from the project's own state (`SPECIFY_FEATURE_DIRECTORY`, then `.specify/feature.json`), which is whichever feature was last worked on, **not** the one being archived; archival runs after a merge, so the two routinely differ. When they differ, report both in Step 6 so a user who passed the wrong path can see it.
+Ignore whatever feature directory `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` reports. The script resolves it from the project's own state (`SPECIFY_FEATURE_DIRECTORY`, then `.specify/feature.json`), which is whichever feature was last worked on, **not** the one being archived; archival runs after a merge, so the two routinely differ. When they differ, report both in Step 6 so a user who passed the wrong path can see it.
 
 **3. Remaining paths.**
 - `MEMORY_DIR` (`REPO_ROOT / .specify/memory`)
@@ -537,7 +540,7 @@ Output the following structured report. Use **absolute paths** for all file refe
 | `/absolute/path/to/GEMINI.md` | Recent Changes, Known Issues |
 
 ## Path Resolution
-[`FEATURE_DIR` and how it was resolved. Note it when `{SCRIPT}` reported a different feature directory, or when the script failed and `REPO_ROOT` was derived by walking up from the argument. Otherwise "Resolved from argument".]
+[`FEATURE_DIR` and how it was resolved. Note it when `.specify/scripts/bash/check-prerequisites.sh --json --paths-only` reported a different feature directory, or when the script failed and `REPO_ROOT` was derived by walking up from the argument. Otherwise "Resolved from argument".]
 
 ## Feature Status
 [List spec/plan files whose status was updated from Draft to Completed, or "No status fields found"]
