@@ -93,6 +93,11 @@ The project uses `uv` for all lifecycle tasks.
 - **Rationale:** `AliasGroup` avoids duplicating the entire command definition. A simple `COMMAND_ALIASES` dict is the single source of truth for all aliases.
 - **Gotcha:** Adding a new alias requires only a dict entry in `COMMAND_ALIASES` — do not register a second Click command.
 
+### Contributor fetching uses `contributionsCollection` (2026-02-08)
+- **Decision:** `fetch_contributor_stats` sources contributed repositories from `contributionsCollection` (per-year `*ContributionsByRepository` fields), sorting and slicing by stars in Python.
+- **Rationale:** `contributionsCollection` exposes the per-type breakdown (commits, PRs, issues, reviews) that the `--types` filter and repo ranking both depend on.
+- **Gotcha:** `specs/001-contributor-card/research.md` proposes `repositoriesContributedTo(...)` instead. That research decision was superseded during implementation and never updated. Do not "fix" the fetcher to match it — `repositoriesContributedTo` returns no contribution-type breakdown, which would break `--types` and the repo rank modifier.
+
 ### SVG Image Embedding (2026-02-08)
 - **Decision:** External images (avatars) are Base64 encoded and embedded as data URIs. Circular masking is achieved using SVG `<clipPath>`.
 - **Rationale:** Ensures self-contained SVGs that work in restricted environments (like GitHub READMEs) without external dependencies or tracking.
@@ -117,6 +122,16 @@ The project uses `uv` for all lifecycle tasks.
 - **Decision:** Do not return early in `_async_process_year_contributions` when `"errors"` is present in GraphQL response dict `c_data`. Check for valid `c_data["data"]["user"]["contributionsCollection"]` payload instead.
 - **Rationale:** GitHub GraphQL API frequently returns field-level `errors` (e.g. unresolvable repos, SAML restrictions, deleted nodes) alongside valid partial `data`. Discarding the response drops valid contributions for that year.
 - **Gotcha:** Always use defensive null checks (e.g., `(item.get("contributions") or {}).get("nodes") or []`, `(node.get("pullRequest") or {}).get("state")`) when parsing partial payloads.
+
+### `--contrib-types` alias is a released contract (2026-08-09)
+- **Decision:** The `contrib` types option keeps two spellings, `--types` and `--contrib-types`, declared on one Click option. `action.yml` forwards the value using `--contrib-types`.
+- **Rationale:** The alias is the production path for every GitHub Actions consumer, not a convenience. Only the CLI-facing `--types` was ever tested, so renaming or dropping the alias would have passed CI and broken all automation.
+- **Gotcha:** `test_action_yml_forwards_a_flag_the_contrib_command_accepts` reads `action.yml` and checks the forwarded flag against `cli.commands["contrib"].params`. If you change the flag name, change both, or that test fails by design. Do not "simplify" it by hardcoding the expected string in the test.
+
+### Shell-safe input passing in `action.yml` (2026-08-09)
+- **Decision:** `contrib-types` reaches the run step through a `CONTRIB_TYPES` environment variable and is dereferenced as `\"\$CONTRIB_TYPES\"` inside the command string, which `eval` expands.
+- **Rationale:** The step builds a command string and runs `eval $CMD`. Interpolating `${{ inputs.* }}` directly into that string lets a value containing a quote break out of the quoting.
+- **Gotcha:** Every other input in `action.yml` still uses direct interpolation. If you touch those lines, prefer the `env:` pattern rather than copying the older one.
 
 ### Token Scope Warning on Empty Contrib Results (2026-08-09)
 - **Decision:** When the `contrib` card returns zero repositories and the token starts with `ghs_`, the CLI prints a stderr hint directing the user to a PAT with `read:user` scope. Keep this behaviour; it is deliberate, not leftover debugging.
