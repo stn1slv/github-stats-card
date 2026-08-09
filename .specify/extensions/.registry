@@ -1,27 +1,10 @@
 {
   "schema_version": "1.0",
   "extensions": {
-    "reconcile": {
-      "version": "1.1.0",
-      "source": "local",
-      "manifest_hash": "sha256:173a5eef590870e13493eddfcb3b058d22aefa68e4fa21824e979c2c30c06c29",
-      "enabled": true,
-      "priority": 10,
-      "registered_commands": {
-        "copilot": [
-          "speckit.reconcile.run"
-        ],
-        "gemini": [
-          "speckit.reconcile.run"
-        ]
-      },
-      "registered_skills": [],
-      "installed_at": "2026-08-09T09:44:52.861746+00:00"
-    },
     "archive": {
-      "version": "1.1.1",
+      "version": "1.1.2",
       "source": "local",
-      "manifest_hash": "sha256:99021c0ae82843e433cb466513500f3b45ccb2beb5cc34871c0d3567eb523532",
+      "manifest_hash": "sha256:49a1a1183a37ad335de91456131efc0add1a95f7035cb8d4982b0f5b9c1225ad",
       "enabled": true,
       "priority": 10,
       "registered_commands": {
@@ -30,7 +13,21 @@
         ]
       },
       "registered_skills": [],
-      "installed_at": "2026-08-09T09:52:17.025443+00:00"
+      "installed_at": "2026-08-09T18:27:04.785394+00:00"
+    },
+    "reconcile": {
+      "version": "1.1.0",
+      "source": "local",
+      "manifest_hash": "sha256:173a5eef590870e13493eddfcb3b058d22aefa68e4fa21824e979c2c30c06c29",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "agy": [
+          "speckit.reconcile.run"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-08-09T18:27:37.943845+00:00"
     }
   }
 }
