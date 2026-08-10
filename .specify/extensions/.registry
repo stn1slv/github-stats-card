@@ -1,20 +1,6 @@
 {
   "schema_version": "1.0",
   "extensions": {
-    "archive": {
-      "version": "1.1.2",
-      "source": "local",
-      "manifest_hash": "sha256:49a1a1183a37ad335de91456131efc0add1a95f7035cb8d4982b0f5b9c1225ad",
-      "enabled": true,
-      "priority": 10,
-      "registered_commands": {
-        "agy": [
-          "speckit.archive.run"
-        ]
-      },
-      "registered_skills": [],
-      "installed_at": "2026-08-09T18:27:04.785394+00:00"
-    },
     "reconcile": {
       "version": "1.1.0",
       "source": "local",
@@ -28,6 +14,20 @@
       },
       "registered_skills": [],
       "installed_at": "2026-08-09T18:27:37.943845+00:00"
+    },
+    "archive": {
+      "version": "1.1.3",
+      "source": "local",
+      "manifest_hash": "sha256:b041e7039be08d17304c1764683d88429d2dc5e482221eadcdcfdc0dea12cf6e",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "agy": [
+          "speckit.archive.run"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-08-10T08:56:38.607237+00:00"
     }
   }
 }
