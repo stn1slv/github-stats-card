@@ -115,7 +115,7 @@ Choose from 50+ themes like `default`, `dark`, `radical`, `vue`, `tokyonight`, `
 Detailed configuration options are available for each card type:
 - **User Stats Card:** `show-icons`, `include-all-commits`, `hide`, `show`, `hide-rank`
   - `show` available values: `repos` (total owned repositories), `reviews`, `prs_merged`, `prs_merged_percentage`, `discussions_started`, `discussions_answered`
-- **Top Languages:** `layout` (normal/compact/donut/pie), `langs-count`, `weighting`, `exclude-repo`
+- **Top Languages:** `layout` (normal/compact/donut/donut-vertical/pie), `langs-count`, `weighting`, `exclude-repo`
 - **Top Contributions:** `limit`, `exclude-repo`, `contrib-types` (default: `commits,prs`)
 
 [**View full configuration guide →**](EXAMPLES.md)
