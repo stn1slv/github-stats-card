@@ -102,3 +102,26 @@ def test_render_contrib_card_font_scaling():
     assert 'style="font-size: 8px;">A+<' in svg
     # S should have font-size: 10px
     assert 'style="font-size: 10px;">S<' in svg
+
+
+def test_render_contrib_card_clamps_a_too_narrow_width():
+    """Below the minimum the rank badge would land on top of the avatar and name."""
+    stats = {
+        "repos": [
+            {
+                "name": "facebook/react",
+                "stars": 200000,
+                "commits": 5,
+                "prs": 2,
+                "issues": 0,
+                "reviews": 0,
+                "rank_level": "S",
+                "avatar_b64": None,
+            }
+        ]
+    }
+    svg = render_contrib_card(stats, ContribCardConfig(card_width=100))
+
+    assert '<svg width="280"' in svg
+    # Badge is right of the repo name (x=30), so the row no longer overlaps
+    assert 'transform="translate(205, 7.5)"' in svg

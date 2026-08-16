@@ -6,7 +6,10 @@ from ..core.config import UserStatsCardConfig
 from ..core.constants import (
     ANIMATION_INITIAL_DELAY_MS,
     ANIMATION_STAGGER_DELAY_MS,
-    RANK_CIRCLE_X_OFFSET,
+    DEFAULT_USER_STATS_CARD_WIDTH,
+    MIN_USER_STATS_CARD_WIDTH,
+    MIN_USER_STATS_CARD_WIDTH_WITH_RANK,
+    RANK_CIRCLE_RIGHT_MARGIN,
     RANK_CIRCLE_Y_OFFSET,
     STAT_LABEL_X_BASE,
     STAT_LABEL_X_WITH_ICON,
@@ -16,7 +19,7 @@ from ..core.constants import (
 from ..core.i18n import get_translation
 from ..core.utils import encode_html, k_formatter
 from ..github.fetcher import UserStats
-from ..github.rank import calculate_user_rank
+from ..github.rank import RankResult, calculate_user_rank
 from .base import render_card
 from .colors import get_card_colors
 from .icons import get_icon_svg
@@ -82,6 +85,49 @@ def _get_stat_definitions(stats: UserStats, locale: str) -> dict[str, dict[str, 
             "icon": "discussions_answered",
         },
     }
+
+
+def _render_rank_content(rank_result: RankResult, rank_icon: str) -> str:
+    """
+    Render what sits inside the rank circle.
+
+    Args:
+        rank_result: Level and percentile from calculate_user_rank
+        rank_icon: "default" (letter grade), "github" (logo above the grade)
+            or "percentile" (the percentile value instead of the grade)
+
+    Returns:
+        SVG fragment to place inside the rank circle group
+    """
+    level = rank_result["level"]
+
+    if rank_icon == "percentile":
+        # The percentile is what the level is derived from, so show it directly.
+        # Lower is better, hence "Top n%".
+        #
+        # The value carries its own font-size: the ring's usable interior is only
+        # about 74px wide (r=40, stroke-width 6), and the inherited .rank-text
+        # face is 24px/weight-800, so a six-glyph value such as "100.0%" (which
+        # any percentile from 99.95 up rounds to) would cross the stroke.
+        return f"""<text x="-5" y="-6" alignment-baseline="central"
+                dominant-baseline="central" text-anchor="middle"
+                style="font-size: 12px;" data-testid="percentile-rank-label">Top</text>
+          <text x="-5" y="12" alignment-baseline="central"
+                dominant-baseline="central" text-anchor="middle"
+                style="font-size: 14px;"
+                data-testid="percentile-rank-icon">{rank_result["percentile"]:.1f}%</text>"""
+
+    if rank_icon == "github":
+        # Logo above the grade, so the grade stays readable. The mark takes its
+        # fill from the .icon CSS rule in base.py, not from a per-call argument.
+        return f"""<g transform="translate(-13, -22)">{get_icon_svg("github")}</g>
+          <text x="-5" y="14" alignment-baseline="central"
+                dominant-baseline="central" text-anchor="middle"
+                data-testid="level-rank-icon">{level}</text>"""
+
+    return f"""<text x="-5" y="3" alignment-baseline="central"
+                dominant-baseline="central" text-anchor="middle"
+                data-testid="level-rank-icon">{level}</text>"""
 
 
 def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str:
@@ -157,7 +203,7 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
         icon_svg = ""
         label_x = STAT_LABEL_X_BASE
         if config.show_icons:
-            icon_svg = get_icon_svg(stat["icon"], colors["icon_color"])  # type: ignore
+            icon_svg = get_icon_svg(stat["icon"])
             label_x = STAT_LABEL_X_WITH_ICON
 
         # Animation delay starts at 450ms and increments by 150ms
@@ -179,10 +225,19 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
 
         stat_items.append(stat_svg)
 
+    # Card width. The stat-value column sits at a fixed offset and the rank circle
+    # has a fixed radius, so a width narrower than they need is clamped up rather
+    # than rendered with content spilling outside the card or overlapping. The
+    # floor differs with the rank circle: without it only the value column has to
+    # fit, but 280px is still too narrow for a long number.
+    min_width = MIN_USER_STATS_CARD_WIDTH if config.hide_rank else MIN_USER_STATS_CARD_WIDTH_WITH_RANK
+    final_width = max(config.card_width or DEFAULT_USER_STATS_CARD_WIDTH, min_width)
+
     # Rank circle
     rank_svg = ""
     if not config.hide_rank:
-        rank_x = RANK_CIRCLE_X_OFFSET
+        # Anchored to the right edge so a custom width keeps it on the canvas
+        rank_x = final_width - RANK_CIRCLE_RIGHT_MARGIN
         rank_y = RANK_CIRCLE_Y_OFFSET
 
         rank_svg = f"""
@@ -191,11 +246,7 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
         <circle class="rank-circle-rim" cx="-10" cy="8" r="40" />
         <circle class="rank-circle" cx="-10" cy="8" r="40" />
         <g class="rank-text">
-          <text x="-5" y="3" alignment-baseline="central"
-                dominant-baseline="central" text-anchor="middle"
-                data-testid="level-rank-icon">
-          {rank_result["level"]}
-        </text>
+          {_render_rank_content(rank_result, config.rank_icon)}
         </g>
       </g>"""
 
@@ -213,9 +264,6 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
     # Add 30px extra height when title is shown (55px offset vs 25px)
     if not config.hide_title:
         card_height += 30
-
-    # Use provided width or default to 467 (matches reference)
-    final_width = config.card_width or 467
 
     return render_card(
         title=title,

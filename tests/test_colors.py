@@ -8,6 +8,7 @@ from src.rendering.colors import (
     is_valid_gradient,
     is_valid_hex_color,
     parse_color,
+    resolve_color,
 )
 
 
@@ -107,3 +108,19 @@ def test_get_card_colors_ring_color_default():
 def test_get_card_colors_ring_color_custom():
     colors = get_card_colors(ring_color="ff0000")
     assert colors["ring_color"] == "#ff0000"
+
+
+# ---------------------------------------------------------------------------
+# resolve_color
+# ---------------------------------------------------------------------------
+def test_resolve_color_passes_a_solid_color_through():
+    assert resolve_color("#2f80ed") == "#2f80ed"
+
+
+def test_resolve_color_collapses_a_gradient_to_its_first_stop():
+    # parse_color keeps the angle at index 0; the first real color is index 1.
+    assert resolve_color(["90", "ff0000", "00ff00"]) == "#ff0000"
+
+
+def test_resolve_color_falls_back_when_a_gradient_has_no_stop():
+    assert resolve_color(["90"], "#000000") == "#000000"

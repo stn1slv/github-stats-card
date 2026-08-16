@@ -1,5 +1,6 @@
 """Integration tests for CLI commands."""
 
+import logging
 import re
 from pathlib import Path
 from unittest.mock import patch
@@ -196,6 +197,21 @@ def test_action_yml_forwards_a_flag_the_contrib_command_accepts():
     assert not [ln for ln in executable if re.search(r"\beval\b", ln)]
 
 
+def test_action_yml_checks_out_the_ref_the_caller_pinned():
+    """A consumer pinning @v1.2.3 must run that tag's code, not whatever is on the default branch."""
+    action = ACTION_YML.read_text()
+
+    # The checkout of the action's own repository must carry an explicit ref.
+    # Without one, actions/checkout silently takes the default branch, so every
+    # released tag would run main and no release would be reproducible.
+    checkout_step = action.split("- name: Checkout action repository", 1)[1].split("- name:", 1)[0]
+    # Both must come from context. A hardcoded repository breaks fork consumers,
+    # who would look for their own tag in the upstream repository.
+    assert "repository: ${{ github.action_repository }}" in checkout_step
+    assert "ref: ${{ github.action_ref }}" in checkout_step
+    assert "stn1slv/github-stats-card" not in checkout_step
+
+
 def test_contrib_command_with_invalid_types():
     runner = CliRunner()
     result = runner.invoke(
@@ -212,3 +228,97 @@ def test_contrib_command_with_empty_types():
 
     assert result.exit_code != 0
     assert "At least one contribution type is required" in result.stderr
+
+
+def test_user_stats_rejects_all_commits_combined_with_a_year():
+    """--include-all-commits would overwrite the year-filtered count, discarding --commits-year."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--include-all-commits", "--commits-year", "2023"],
+    )
+
+    assert result.exit_code != 0
+    assert "cannot be combined" in result.stderr
+
+
+def test_user_stats_rejects_out_of_range_number_precision():
+    """Documented as 0-2; an out-of-range value used to be ignored in silence."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--number-precision", "5"])
+
+    assert result.exit_code != 0
+    assert "--number-precision" in result.stderr
+
+
+def test_contrib_rejects_a_non_positive_limit():
+    """--limit feeds a list slice, so 0 empties the card and -1 drops the last repository."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["contrib", "-u", "user", "-t", "token", "-o", "c.svg", "--limit", "0"])
+
+    assert result.exit_code != 0
+    assert "--limit" in result.stderr
+
+
+def test_top_langs_rejects_an_out_of_range_weight():
+    """The weight is an exponent, so a large value overflows during scoring."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["top-langs", "-u", "user", "-t", "token", "-o", "l.svg", "--size-weight", "100"])
+
+    assert result.exit_code != 0
+    assert "--size-weight" in result.stderr
+
+
+def test_debug_flag_reraises_instead_of_collapsing_to_one_line():
+    """Without --debug a genuine bug is indistinguishable from a network problem."""
+    runner = CliRunner()
+    with patch("src.cli.fetch_user_stats") as mock_fetch:
+        mock_fetch.side_effect = KeyError("totalStars")
+
+        plain = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg"])
+        assert plain.exit_code == 1
+        assert "Unexpected error" in plain.stderr
+
+        debugged = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--debug"])
+        assert isinstance(debugged.exception, KeyError)
+
+
+def test_user_stats_rejects_an_unsupported_locale():
+    """Only locales with translations may be accepted; unknown ones used to fall back in silence."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--locale", "fr"])
+
+    assert result.exit_code != 0
+    assert "--locale" in result.stderr
+
+
+def test_configure_logging_makes_the_fetch_warning_cause_visible_on_stderr(capsys):
+    """A warning that names no cause is as useless as the silent fallback it replaced."""
+    from src.cli import _configure_logging
+
+    _configure_logging(debug=False)
+    logging.getLogger("src.github.fetcher").warning(
+        "Issue search failed, falling back to the owned-repository issue count: %s",
+        "429 Too Many Requests",
+        extra={"username": "octocat"},
+    )
+
+    stderr = capsys.readouterr().err
+    assert "Issue search failed" in stderr
+    assert "429 Too Many Requests" in stderr
+
+
+def test_configure_logging_is_idempotent_and_survives_a_configured_root(capsys):
+    """basicConfig is a no-op once the root logger has a handler; this must not be."""
+    from src.cli import _configure_logging
+
+    logging.basicConfig(level=logging.CRITICAL)  # simulate a host process
+    _configure_logging(debug=False)
+    _configure_logging(debug=True)
+
+    logger = logging.getLogger("src.github.fetcher")
+    logger.debug("debug diagnostic")
+
+    stderr = capsys.readouterr().err
+    # --debug took effect despite the pre-configured root, and only once
+    assert stderr.count("debug diagnostic") == 1

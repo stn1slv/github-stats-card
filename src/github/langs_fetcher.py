@@ -1,5 +1,6 @@
 """GitHub API client for fetching language statistics."""
 
+import logging
 from dataclasses import dataclass
 
 from ..core.config import LangsFetchConfig
@@ -7,6 +8,8 @@ from ..core.constants import DEFAULT_LANG_COLOR
 from ..core.exceptions import APIError, LanguageFetchError
 from ..core.utils import is_repo_excluded
 from .client import GitHubClient
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -70,7 +73,7 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
         except APIError as e:
             raise LanguageFetchError(f"Failed to fetch data from GitHub API: {e}") from e
 
-        if "errors" in data:
+        if data.get("errors"):
             error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
             raise LanguageFetchError(f"GitHub API error: {error_msg}")
 
@@ -96,7 +99,14 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
                 page_repos = page_user.get("repositories", {})
                 repos.extend(page_repos.get("nodes", []))
                 page_info = page_repos.get("pageInfo", {})
-            except APIError:
+            except APIError as e:
+                # Continue with what we have, but say so: languages used only in
+                # the repositories on the unread pages are now missing.
+                logger.warning(
+                    "Repository pagination failed, language totals may be incomplete: %s",
+                    e,
+                    extra={"username": username},
+                )
                 break
 
         # Filter out excluded repositories

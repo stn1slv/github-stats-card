@@ -13,6 +13,9 @@ from ..core.constants import (
     LANGS_COMPACT_COLUMN_WIDTH_WIDE,
     LANGS_COMPACT_ROW_HEIGHT,
     LANGS_DONUT_RADIUS,
+    LANGS_DONUT_STROKE_WIDTH,
+    LANGS_DONUT_VERTICAL_CENTER_Y,
+    LANGS_DONUT_VERTICAL_LEGEND_Y,
     LANGS_PIE_RADIUS,
     MAXIMUM_LANGS_COUNT,
     MIN_CARD_WIDTH,
@@ -20,7 +23,7 @@ from ..core.constants import (
 from ..core.utils import clamp_value, encode_html
 from ..github.langs_fetcher import Language
 from .base import render_card
-from .colors import get_card_colors
+from .colors import get_card_colors, resolve_color
 
 
 def trim_top_languages(
@@ -236,19 +239,16 @@ def render_compact_layout(
   """
 
 
-def render_donut_layout(
+def _render_donut_segments(
     langs: list[Language],
-    width: int,
     total_score: int,
-    stats_format: str,
-    text_color: str,
+    center_x: float,
+    center_y: float,
 ) -> str:
-    """Render donut chart layout."""
+    """Render the ring segments of a donut chart around the given centre."""
     radius = LANGS_DONUT_RADIUS
     circumference = 2 * math.pi * radius
-    center_x, center_y = 100, 100
 
-    # Generate donut segments
     segments = []
     offset = 0.0
 
@@ -260,12 +260,26 @@ def render_donut_layout(
         segments.append(f"""
         <circle class="stagger" style="animation-delay: {stagger_delay}ms"
                 cx="{center_x}" cy="{center_y}" r="{radius}"
-                fill="transparent" stroke="{lang.color}" stroke-width="25"
+                fill="transparent" stroke="{lang.color}" stroke-width="{LANGS_DONUT_STROKE_WIDTH}"
                 stroke-dasharray="{segment_length} {circumference}"
                 stroke-dashoffset="{-offset}"
                 transform="rotate(-90 {center_x} {center_y})" />
         """)
         offset += segment_length
+
+    return "".join(segments)
+
+
+def render_donut_layout(
+    langs: list[Language],
+    width: int,
+    total_score: int,
+    stats_format: str,
+    text_color: str,
+) -> str:
+    """Render donut chart layout with the legend beside the chart."""
+    center_x, center_y = 100, 100
+    segments = _render_donut_segments(langs, total_score, center_x, center_y)
 
     # Legend on the right
     legend_items = []
@@ -283,9 +297,53 @@ def render_donut_layout(
 
     return f"""
     <g transform="translate(25, 0)">
-      {"".join(segments)}
+      {segments}
     </g>
     <g transform="translate(175, 50)">
+      {"".join(legend_items)}
+    </g>
+    """
+
+
+def render_donut_vertical_layout(
+    langs: list[Language],
+    width: int,
+    total_score: int,
+    stats_format: str,
+    text_color: str,
+) -> str:
+    """Render donut chart layout with the legend stacked below the chart."""
+    # Centred horizontally so the ring stays balanced at any card width
+    center_x = width / 2
+    center_y = LANGS_DONUT_VERTICAL_CENTER_Y
+    segments = _render_donut_segments(langs, total_score, center_x, center_y)
+
+    # Legend below the chart, in two columns. The column width is derived from the
+    # card so the second column cannot start beyond what the card can hold.
+    half = (len(langs) + 1) // 2
+    column_width = (width - 2 * CARD_PADDING) // 2
+    legend_items = []
+
+    for index, lang in enumerate(langs):
+        percentage = (lang.score / total_score) * 100 if total_score > 0 else 0
+        display_value = get_display_value(lang.size, percentage, stats_format)
+        stagger_delay = (index + 3) * ANIMATION_STAGGER_DELAY_MS
+        col = 0 if index < half else 1
+        row = index if index < half else index - half
+
+        legend_items.append(f"""
+        <g class="stagger" style="animation-delay: {stagger_delay}ms"
+           transform="translate({col * column_width}, {row * LANGS_COMPACT_ROW_HEIGHT})">
+          <circle cx="5" cy="6" r="5" fill="{lang.color}" />
+          <text x="15" y="10" class="lang-name">{encode_html(lang.name)} {display_value}</text>
+        </g>
+        """)
+
+    return f"""
+    <g transform="translate(0, 0)">
+      {segments}
+    </g>
+    <g transform="translate({CARD_PADDING}, {LANGS_DONUT_VERTICAL_LEGEND_Y})">
       {"".join(legend_items)}
     </g>
     """
@@ -376,40 +434,49 @@ def render_top_languages(
     Returns:
         SVG string
     """
-    # Validate layout
+    # Validate layout and stats_format into locals. Writing them back onto the
+    # config would mutate the caller's object as a side effect of rendering.
     valid_layouts = ["normal", "compact", "donut", "donut-vertical", "pie"]
-    if config.layout not in valid_layouts:
-        config.layout = "normal"
-
-    # Validate stats_format
-    if config.stats_format not in ["percentages", "bytes"]:
-        config.stats_format = "percentages"
+    layout = config.layout if config.layout in valid_layouts else "normal"
+    stats_format = config.stats_format if config.stats_format in ["percentages", "bytes"] else "percentages"
 
     # Default langs_count based on layout
     langs_count = config.langs_count
     if langs_count is None:
-        langs_count = get_default_langs_count(config.layout)
+        langs_count = get_default_langs_count(layout)
 
     # Trim and filter languages
     langs, total_score = trim_top_languages(top_langs, langs_count, config.hide)
 
-    # Card dimensions - use compact width for compact layout, otherwise default
-    if config.layout == "compact":
+    # `hide_progress` only means anything to the layouts that draw progress bars.
+    # The chart layouts have none, so it must not divert them into the compact
+    # branch: the height dispatch below and the layout dispatch further down are
+    # ordered identically, and a mismatch between the two renders a chart inside
+    # a card sized for a legend and clips it.
+    uses_compact_body = layout == "compact" or (config.hide_progress and layout == "normal")
+
+    # Card dimensions. The two-column legend layouts need the wider card, or the
+    # second column runs past the right border on long language names.
+    if layout in ("compact", "donut-vertical"):
         width = config.card_width or DEFAULT_LANGS_COMPACT_WIDTH
     else:
         width = config.card_width or DEFAULT_LANGS_CARD_WIDTH
     width = max(width, MIN_CARD_WIDTH)
 
-    # Calculate height based on layout
-    if config.layout == "compact" or config.hide_progress:
+    # Calculate height based on layout (same order as the layout dispatch below)
+    if layout == "pie":
+        height = 300 + ((len(langs) + 1) // 2) * 25
+    elif layout == "donut-vertical":
+        # 25px body offset above the ring, then the legend rows, then bottom padding
+        rows = (len(langs) + 1) // 2
+        height = LANGS_DONUT_VERTICAL_LEGEND_Y + rows * LANGS_COMPACT_ROW_HEIGHT + 45
+    elif layout == "donut":
+        height = 215 + max(len(langs) - 5, 0) * 32
+        width = width + 50
+    elif uses_compact_body:
         height = 60 + ((len(langs) + 1) // 2) * 25
         if config.hide_progress:
             height -= 25
-    elif config.layout == "donut":
-        height = 215 + max(len(langs) - 5, 0) * 32
-        width = width + 50
-    elif config.layout == "donut-vertical" or config.layout == "pie":
-        height = 300 + ((len(langs) + 1) // 2) * 25
     else:  # normal
         height = 45 + (len(langs) + 1) * 40
 
@@ -426,8 +493,8 @@ def render_top_languages(
         border_color=config.border_color,
     )
 
-    # Extract text color for rendering
-    final_text_color = colors["text_color"] if isinstance(colors["text_color"], str) else colors["text_color"][1]
+    # Extract text color for rendering (a gradient collapses to its first stop)
+    final_text_color = resolve_color(colors["text_color"])
 
     # Render layout
     if len(langs) == 0:
@@ -435,22 +502,18 @@ def render_top_languages(
         final_layout = """
         <text x="25" y="50" class="lang-name">No languages data available</text>
         """
-    elif config.layout == "pie":
-        final_layout = render_pie_layout(langs, total_score, config.stats_format, final_text_color)
-    elif config.layout == "donut-vertical":
-        final_layout = f"""
-        <g transform="translate(0, 0)">
-          {render_pie_layout(langs, total_score, config.stats_format, final_text_color)}
-        </g>
-        """
-    elif config.layout == "donut":
-        final_layout = render_donut_layout(langs, width, total_score, config.stats_format, final_text_color)
-    elif config.layout == "compact" or config.hide_progress:
+    elif layout == "pie":
+        final_layout = render_pie_layout(langs, total_score, stats_format, final_text_color)
+    elif layout == "donut-vertical":
+        final_layout = render_donut_vertical_layout(langs, width, total_score, stats_format, final_text_color)
+    elif layout == "donut":
+        final_layout = render_donut_layout(langs, width, total_score, stats_format, final_text_color)
+    elif uses_compact_body:
         final_layout = render_compact_layout(
-            langs, width, total_score, config.hide_progress, config.stats_format, final_text_color
+            langs, width, total_score, config.hide_progress, stats_format, final_text_color
         )
     else:
-        final_layout = render_normal_layout(langs, width, total_score, config.stats_format, final_text_color)
+        final_layout = render_normal_layout(langs, width, total_score, stats_format, final_text_color)
 
     # Add CSS
     css = f"""
@@ -480,7 +543,7 @@ def render_top_languages(
     """
 
     # Wrap in padding group for most layouts
-    if config.layout in ["pie", "donut-vertical"]:
+    if layout in ["pie", "donut-vertical"]:
         body = final_layout
     else:
         body = f'<svg data-testid="lang-items" x="{CARD_PADDING}">{final_layout}</svg>'

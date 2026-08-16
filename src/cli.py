@@ -1,5 +1,6 @@
 """Command-line interface for GitHub Stats Card generator."""
 
+import logging
 import os
 import sys
 
@@ -13,7 +14,9 @@ from .core.config import (
     UserStatsCardConfig,
     UserStatsFetchConfig,
 )
+from .core.constants import VALID_CONTRIB_TYPES
 from .core.exceptions import FetchError, LanguageFetchError
+from .core.i18n import TRANSLATIONS
 from .github.fetcher import fetch_contributor_stats, fetch_user_stats
 from .github.langs_fetcher import fetch_top_languages
 from .rendering.contrib import render_contrib_card
@@ -53,6 +56,42 @@ class AliasGroup(click.Group):
             cmd = super().get_command(ctx, canonical)
             cmd_name = canonical
         return cmd_name, cmd, remaining
+
+
+def _configure_logging(debug: bool) -> None:
+    """
+    Route this package's warnings to stderr so partial results are never silent.
+
+    The fetchers degrade rather than fail when a page or a supplementary query
+    errors. Without a handler those warnings are discarded and the card renders
+    with quietly wrong numbers.
+
+    The handler is attached to this package's logger rather than through
+    ``logging.basicConfig``: basicConfig is a no-op once the root logger already
+    has a handler, which would make --debug silently ineffective inside a host
+    process, and raising the *root* level would also turn on httpx and httpcore
+    debug output that has nothing to do with fetch diagnostics.
+    """
+    package_logger = logging.getLogger(__name__.split(".", 1)[0])
+
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+
+    # Idempotent: repeated invocations (tests, embedded use) must not stack handlers
+    for existing in list(package_logger.handlers):
+        package_logger.removeHandler(existing)
+    package_logger.addHandler(handler)
+    package_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+    package_logger.propagate = False
+
+
+def _abort(error: Exception, debug: bool) -> None:
+    """Report an unexpected error and exit, or re-raise it when --debug is set."""
+    if debug:
+        raise error
+    click.echo(f"❌ Unexpected error: {error}", err=True)
+    click.echo("Re-run with --debug for the full traceback.", err=True)
+    sys.exit(1)
 
 
 def _write_svg_file(svg: str, output: str) -> None:
@@ -167,6 +206,9 @@ def cli() -> None:
 )
 @click.option(
     "--locale",
+    # Choices come from TRANSLATIONS so the CLI cannot advertise a locale that
+    # has no strings. An unknown value used to fall back to English in silence.
+    type=click.Choice(sorted(TRANSLATIONS)),
     default="en",
     help="Language locale (default: en)",
 )
@@ -195,7 +237,7 @@ def cli() -> None:
 )
 @click.option(
     "--number-precision",
-    type=int,
+    type=click.IntRange(0, 2),
     help="Decimal places for short format (0-2)",
 )
 @click.option(
@@ -213,6 +255,11 @@ def cli() -> None:
     "--text-bold/--no-text-bold",
     default=True,
     help="Use bold text (default: yes)",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Show the full traceback on an unexpected error and log fetch diagnostics",
 )
 def user_stats(
     username: str,
@@ -243,6 +290,7 @@ def user_stats(
     rank_icon: str,
     disable_animations: bool,
     text_bold: bool,
+    debug: bool,
 ) -> None:
     """
     Generate GitHub User Stats Card SVG.
@@ -269,6 +317,13 @@ def user_stats(
       # Backward-compatible alias
       github-stats-card stats -u octocat -o stats.svg
     """
+    _configure_logging(debug)
+
+    # --include-all-commits replaces the commit count with an all-time search
+    # total, which would silently discard the year filter.
+    if include_all_commits and commits_year is not None:
+        raise click.BadParameter("--include-all-commits and --commits-year cannot be combined.")
+
     try:
         # Create fetch configuration
         fetch_config = UserStatsFetchConfig.from_cli_args(
@@ -330,8 +385,7 @@ def user_stats(
             )
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ Unexpected error: {e}", err=True)
-        sys.exit(1)
+        _abort(e, debug)
 
 
 @cli.command(name="top-langs")
@@ -403,13 +457,15 @@ def user_stats(
 )
 @click.option(
     "--size-weight",
-    type=float,
-    help="Weight for byte count in ranking (overrides --weighting, default: 1.0)",
+    # Bounded: the weight is an exponent (size ** weight), so a large value
+    # overflows to an OverflowError and a negative one inverts the ranking.
+    type=click.FloatRange(0.0, 2.0),
+    help="Weight for byte count in ranking, 0.0-2.0 (overrides --weighting, default: 1.0)",
 )
 @click.option(
     "--count-weight",
-    type=float,
-    help="Weight for repo count in ranking (overrides --weighting, default: 0.0)",
+    type=click.FloatRange(0.0, 2.0),
+    help="Weight for repo count in ranking, 0.0-2.0 (overrides --weighting, default: 0.0)",
 )
 @click.option(
     "--card-width",
@@ -453,6 +509,11 @@ def user_stats(
     is_flag=True,
     help="Disable CSS animations",
 )
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Show the full traceback on an unexpected error and log fetch diagnostics",
+)
 def top_langs(
     username: str,
     token: str,
@@ -477,6 +538,7 @@ def top_langs(
     border_radius: float,
     stats_format: str,
     disable_animations: bool,
+    debug: bool,
 ) -> None:
     """
     Generate Top Languages Card SVG.
@@ -505,6 +567,8 @@ def top_langs(
       github-stats-card top-langs -u octocat -o langs.svg \\
         --weighting balanced
     """
+    _configure_logging(debug)
+
     try:
         # Resolve weighting preset if specified
         final_size_weight = size_weight
@@ -571,8 +635,7 @@ def top_langs(
         click.echo(f"❌ Error fetching language data: {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ Unexpected error: {e}", err=True)
-        sys.exit(1)
+        _abort(e, debug)
 
 
 @cli.command(name="contrib")
@@ -599,7 +662,9 @@ def top_langs(
 @click.option(
     "--limit",
     "-l",
-    type=int,
+    # Bounded below: the value is used as a list slice, so 0 renders an empty
+    # card and a negative value silently drops repositories from the end.
+    type=click.IntRange(min=1),
     default=10,
     help="Number of repositories to show (default: 10)",
 )
@@ -666,6 +731,11 @@ def top_langs(
     default="commits,prs",
     help="Comma-separated list of contribution types to fetch: commits, prs, issues, reviews (default: commits,prs)",
 )
+@click.option(
+    "--debug",
+    is_flag=True,
+    help="Show the full traceback on an unexpected error and log fetch diagnostics",
+)
 def contrib(
     username: str,
     token: str,
@@ -684,6 +754,7 @@ def contrib(
     border_radius: float,
     disable_animations: bool,
     contribution_types: str,
+    debug: bool,
 ) -> None:
     """
     Generate Top Contributions Card SVG.
@@ -704,7 +775,7 @@ def contrib(
       github-stats-card contrib -u octocat -o contrib.svg \\
         --exclude-repo "facebook/react,microsoft/vscode"
     """
-    from src.core.constants import VALID_CONTRIB_TYPES
+    _configure_logging(debug)
 
     # Validate contribution types (outside try so Click handles BadParameter natively)
     parsed_types = [t.strip() for t in contribution_types.split(",") if t.strip()]
@@ -765,8 +836,7 @@ def contrib(
         click.echo(f"❌ Error fetching data: {e}", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"❌ Unexpected error: {e}", err=True)
-        sys.exit(1)
+        _abort(e, debug)
 
 
 if __name__ == "__main__":

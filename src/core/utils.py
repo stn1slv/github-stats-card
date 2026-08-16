@@ -24,15 +24,19 @@ def k_formatter(num: int, precision: int | None = None) -> str:
         '999'
         >>> k_formatter(6626, precision=1)
         '6.6k'
+        >>> k_formatter(5, precision=1)
+        '5'
     """
     abs_num = abs(num)
     sign = -1 if num < 0 else 1
 
-    if precision is not None and 0 <= precision <= 2:
-        return f"{sign * abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR:.{precision}f}k"
-
+    # The magnitude guard applies to both paths. Without it, a precision turns
+    # 5 into "0.0k" and rounds 999 up to "1k".
     if abs_num < NUMBER_FORMAT_THOUSAND_DIVISOR:
         return str(sign * abs_num)
+
+    if precision is not None and 0 <= precision <= 2:
+        return f"{sign * abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR:.{precision}f}k"
 
     formatted = sign * round(abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR, 1)
     # Remove trailing .0

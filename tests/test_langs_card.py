@@ -1,5 +1,7 @@
 """Tests for top languages card rendering."""
 
+import re
+
 import pytest
 
 from src.core.config import LangsCardConfig
@@ -194,3 +196,57 @@ def test_render_top_languages_hide_progress(sample_langs):
     config = LangsCardConfig(layout="compact", hide_progress=True)
     svg = render_top_languages(sample_langs, config)
     assert 'mask="url(#rect-mask)"' not in svg
+
+
+def test_donut_vertical_is_not_the_pie_layout(sample_langs):
+    """donut-vertical used to render render_pie_layout verbatim."""
+    pie = render_top_languages(sample_langs, LangsCardConfig(layout="pie"))
+    donut_vertical = render_top_languages(sample_langs, LangsCardConfig(layout="donut-vertical"))
+
+    assert pie != donut_vertical
+    # A donut is drawn with stroked circles, a pie with filled wedge paths
+    assert 'data-testid="lang-pie"' in pie
+    assert 'data-testid="lang-pie"' not in donut_vertical
+    assert "stroke-dasharray" in donut_vertical
+
+
+def test_donut_vertical_stacks_the_legend_below_the_ring(sample_langs):
+    """Vertical means ring on top, legend underneath, and both inside the card."""
+    svg = render_top_languages(sample_langs, LangsCardConfig(layout="donut-vertical"))
+
+    height = int(re.search(r'<svg width="\d+" height="(\d+)"', svg).group(1))
+    # Anchor on the group that actually holds the legend; the title group also
+    # sits at x=25, so a looser pattern matches it first.
+    legend_y = int(re.search(r'<g transform="translate\(25, (\d+)\)">\s*<g class="stagger"', svg).group(1))
+    ring_center_y = float(re.search(r'<circle[^>]*cy="([\d.]+)"[^>]*stroke-dasharray', svg, re.DOTALL).group(1))
+
+    assert ring_center_y < legend_y
+    assert legend_y < height
+
+
+def test_donut_vertical_with_hide_progress_is_not_sized_as_a_compact_card(sample_langs):
+    """The height and layout dispatch must agree, or the ring renders into a clipped card."""
+    plain = render_top_languages(sample_langs, LangsCardConfig(layout="donut-vertical"))
+    hidden = render_top_languages(sample_langs, LangsCardConfig(layout="donut-vertical", hide_progress=True))
+
+    # hide_progress means nothing to a chart layout: same card, same content
+    assert plain == hidden
+    # And the ring is still drawn, not replaced by the compact legend
+    assert "stroke-dasharray" in hidden
+
+
+def test_donut_vertical_legend_second_column_stays_inside_the_card(sample_langs):
+    """A long language name in column 2 used to run past the right border."""
+    long_name = "Jupyter Notebook Extension"
+    langs = dict(sample_langs)
+    langs[long_name] = Language(name=long_name, color="#DA5B0B", size=900, count=1, score=900)
+
+    svg = render_top_languages(langs, LangsCardConfig(layout="donut-vertical"))
+
+    width = int(re.search(r'<svg width="(\d+)"', svg).group(1))
+    column_offsets = {float(x) for x in re.findall(r'transform="translate\(([\d.]+), \d+\)"', svg)}
+    second_column = max(column_offsets)
+
+    # Column 2 starts inside the padded body and leaves room for its text
+    assert second_column <= (width - 2 * 25) / 2
+    assert 25 + second_column + 15 < width

@@ -21,9 +21,21 @@ DEFAULT_BORDER_RADIUS = 4.5
 STAT_LINE_HEIGHT = 25
 DEFAULT_LINE_HEIGHT = 25
 USER_STATS_CARD_BASE_HEIGHT = 40
+DEFAULT_USER_STATS_CARD_WIDTH = 467
 RANK_CIRCLE_RADIUS = 40
-RANK_CIRCLE_X_OFFSET = 390.5
+# Distance from the right card edge to the rank circle's transform origin.
+# The circle is positioned relative to the width, not at a fixed x, so a custom
+# --card-width cannot push it off the canvas (467 - 76.5 = the historic 390.5).
+RANK_CIRCLE_RIGHT_MARGIN = 76.5
 RANK_CIRCLE_Y_OFFSET = 47.5
+# Narrowest card that still fits the fixed stat-value column next to the rank
+# circle. Below this the two overlap, so the width is clamped up to it.
+MIN_USER_STATS_CARD_WIDTH_WITH_RANK = 420
+# Narrowest card without the rank circle. The stat value is left-anchored at an
+# absolute x of 25 + 219.01, and a long value such as "12,345,678" runs about
+# 84px, so anything below this clips the number against the right border.
+# MIN_CARD_WIDTH (280) is not enough here, whatever the other cards use.
+MIN_USER_STATS_CARD_WIDTH = 340
 STAT_VALUE_X_POSITION = 219.01
 STAT_LABEL_X_BASE = 0
 STAT_LABEL_X_WITH_ICON = 25
@@ -37,6 +49,10 @@ LANGS_COMPACT_COLUMN_WIDTH_WIDE = 225  # For 467px width compact layout
 LANGS_COMPACT_ROW_HEIGHT = 25
 LANGS_DONUT_RADIUS = 40
 LANGS_DONUT_STROKE_WIDTH = 25
+# donut-vertical stacks the ring above the legend. The ring's outer edge sits at
+# center_y + radius + stroke/2 = 100 + 40 + 12.5, so the legend starts clear of it.
+LANGS_DONUT_VERTICAL_CENTER_Y = 100
+LANGS_DONUT_VERTICAL_LEGEND_Y = 175
 LANGS_PIE_RADIUS = 90
 
 # Animation Settings
@@ -48,16 +64,6 @@ ANIMATION_GROW_WIDTH_DURATION_MS = 600
 
 # Color Settings
 DEFAULT_LANG_COLOR = "#858585"
-
-# Rank Calculation
-RANK_S_THRESHOLD = 0.01
-RANK_A_PLUS_THRESHOLD = 0.25
-RANK_A_THRESHOLD = 0.45
-RANK_A_MINUS_THRESHOLD = 0.60
-RANK_B_PLUS_THRESHOLD = 0.70
-RANK_B_THRESHOLD = 0.80
-RANK_B_MINUS_THRESHOLD = 0.90
-RANK_C_PLUS_THRESHOLD = 1.00
 
 # Font Settings
 FONT_FAMILY_HEADER = "'Segoe UI', Ubuntu, Sans-Serif"

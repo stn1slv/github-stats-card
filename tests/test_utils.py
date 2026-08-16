@@ -110,3 +110,20 @@ def test_parse_list_arg(arg, expected):
 )
 def test_is_repo_excluded(repo: str, patterns: list[str], expected: bool):
     assert is_repo_excluded(repo, patterns) is expected
+
+
+@pytest.mark.parametrize(
+    ("value", "precision", "expected"),
+    [
+        # A precision must not force the k suffix on a value below the divisor
+        (5, 1, "5"),
+        (0, 2, "0"),
+        (999, 0, "999"),
+        (-42, 1, "-42"),
+        # At or above the divisor the precision still applies
+        (1000, 0, "1k"),
+        (6626, 1, "6.6k"),
+    ],
+)
+def test_k_formatter_precision_respects_magnitude(value: int, precision: int, expected: str):
+    assert k_formatter(value, precision=precision) == expected
