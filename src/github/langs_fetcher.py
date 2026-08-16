@@ -93,7 +93,7 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
         while page_info.get("hasNextPage"):
             try:
                 page_data = client.graphql_query(query, {"login": username, "after": page_info["endCursor"]})
-                page_user = page_data.get("data", {}).get("user")
+                page_user = (page_data.get("data") or {}).get("user")
                 if not page_user:
                     break
                 page_repos = page_user.get("repositories", {})
@@ -105,7 +105,6 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
                 logger.warning(
                     "Repository pagination failed, language totals may be incomplete: %s",
                     e,
-                    extra={"username": username},
                 )
                 break
 

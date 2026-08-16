@@ -5,6 +5,7 @@ import re
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from src.cli import cli
@@ -292,7 +293,28 @@ def test_user_stats_rejects_an_unsupported_locale():
     assert "--locale" in result.stderr
 
 
-def test_configure_logging_makes_the_fetch_warning_cause_visible_on_stderr(capsys):
+@pytest.fixture
+def restore_logging():
+    """Snapshot and restore global logging state.
+
+    _configure_logging mutates a package logger that outlives the test, and the
+    root-logger test below mutates the root. Without this the next
+    logging-sensitive test inherits a level and a handler bound to a torn-down
+    capsys stream.
+    """
+    root = logging.getLogger()
+    package = logging.getLogger("src")
+    saved = [(lg, lg.level, list(lg.handlers), lg.propagate) for lg in (root, package)]
+    try:
+        yield
+    finally:
+        for lg, level, handlers, propagate in saved:
+            lg.setLevel(level)
+            lg.handlers[:] = handlers
+            lg.propagate = propagate
+
+
+def test_configure_logging_makes_the_fetch_warning_cause_visible_on_stderr(capsys, restore_logging):
     """A warning that names no cause is as useless as the silent fallback it replaced."""
     from src.cli import _configure_logging
 
@@ -308,7 +330,7 @@ def test_configure_logging_makes_the_fetch_warning_cause_visible_on_stderr(capsy
     assert "429 Too Many Requests" in stderr
 
 
-def test_configure_logging_is_idempotent_and_survives_a_configured_root(capsys):
+def test_configure_logging_is_idempotent_and_survives_a_configured_root(capsys, restore_logging):
     """basicConfig is a no-op once the root logger has a handler; this must not be."""
     from src.cli import _configure_logging
 

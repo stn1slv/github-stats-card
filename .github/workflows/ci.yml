@@ -31,7 +31,9 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        # --locked: a drifted uv.lock fails the build instead of being
+        # silently re-resolved, so a green CI attests the committed lockfile.
+        run: uv sync --all-extras --locked
 
       - name: Check formatting
         run: uv run ruff format --check src tests

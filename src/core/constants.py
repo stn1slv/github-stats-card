@@ -28,14 +28,12 @@ RANK_CIRCLE_RADIUS = 40
 # --card-width cannot push it off the canvas (467 - 76.5 = the historic 390.5).
 RANK_CIRCLE_RIGHT_MARGIN = 76.5
 RANK_CIRCLE_Y_OFFSET = 47.5
-# Narrowest card that still fits the fixed stat-value column next to the rank
-# circle. Below this the two overlap, so the width is clamped up to it.
-MIN_USER_STATS_CARD_WIDTH_WITH_RANK = 420
-# Narrowest card without the rank circle. The stat value is left-anchored at an
-# absolute x of 25 + 219.01, and a long value such as "12,345,678" runs about
-# 84px, so anything below this clips the number against the right border.
-# MIN_CARD_WIDTH (280) is not enough here, whatever the other cards use.
-MIN_USER_STATS_CARD_WIDTH = 340
+# Distance from the rank circle's transform origin to the left edge of its rim:
+# the rim is centred at cx=-10 with r=40 and a 6px stroke, so it starts 53px
+# before the origin. The stat values must clear this, not merely the card edge.
+RANK_CIRCLE_RIM_LEFT_INSET = 53
+# Breathing room between the widest stat value and whatever follows it
+STAT_VALUE_RIGHT_GAP = 12
 STAT_VALUE_X_POSITION = 219.01
 STAT_LABEL_X_BASE = 0
 STAT_LABEL_X_WITH_ICON = 25
@@ -44,6 +42,8 @@ STAT_LABEL_X_WITH_ICON = 25
 MAXIMUM_LANGS_COUNT = 20
 LANGS_PROGRESS_BAR_HEIGHT = 8
 LANGS_LEGEND_CIRCLE_RADIUS = 5
+# x offset of legend text, clearing the marker circle to its left
+LANGS_LEGEND_TEXT_X = 15
 LANGS_COMPACT_COLUMN_WIDTH = 150
 LANGS_COMPACT_COLUMN_WIDTH_WIDE = 225  # For 467px width compact layout
 LANGS_COMPACT_ROW_HEIGHT = 25

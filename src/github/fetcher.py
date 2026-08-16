@@ -197,7 +197,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
             raise FetchError(f"GraphQL error: {error_msg}")
 
-        user = data.get("data", {}).get("user")
+        user = (data.get("data") or {}).get("user")
         if not user:
             raise FetchError(f"User '{username}' not found")
 
@@ -238,7 +238,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             try:
                 page_data = client.graphql_query(pagination_query, {"login": username, "after": end_cursor})
 
-                page_user = page_data.get("data", {}).get("user")
+                page_user = (page_data.get("data") or {}).get("user")
                 if page_user:
                     total_stars += sum(repo["stargazers"]["totalCount"] for repo in page_user["repositories"]["nodes"])
                     has_next_page = page_user["repositories"]["pageInfo"]["hasNextPage"]
@@ -252,7 +252,6 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                 logger.warning(
                     "Repository pagination failed, total stars may be understated: %s",
                     e,
-                    extra={"username": username},
                 )
                 break
 
@@ -271,7 +270,6 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                 logger.warning(
                     "All-commits search failed, falling back to this year's commit count: %s",
                     e,
-                    extra={"username": username},
                 )
 
         # Use REST API to get accurate issue count (includes issues in repos user doesn't own)
@@ -283,7 +281,6 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             logger.warning(
                 "Issue search failed, falling back to the owned-repository issue count: %s",
                 e,
-                extra={"username": username},
             )
 
         # Fetch additional stats if requested
@@ -306,7 +303,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
 
             try:
                 disc_data = client.graphql_query(discussions_query, {"login": username})
-                disc_user = disc_data.get("data", {}).get("user", {})
+                disc_user = (disc_data.get("data") or {}).get("user") or {}
 
                 discussions_started = disc_user.get("repositoryDiscussions", {}).get("totalCount", 0)
                 discussions_answered = disc_user.get("repositoryDiscussionComments", {}).get("totalCount", 0)
@@ -314,7 +311,6 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                 logger.warning(
                     "Discussions query failed, discussion counts render as zero: %s",
                     e,
-                    extra={"username": username},
                 )
 
         return {
@@ -450,15 +446,27 @@ async def _async_fetch_contribution_years(client: GitHubClient, username: str) -
         raise FetchError(f"Failed to fetch contribution years: {e}") from e
 
     if data.get("errors"):
-        raise FetchError(f"GraphQL error: {data['errors'][0].get('message')}")
+        error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
+        raise FetchError(f"GraphQL error: {error_msg}")
 
-    user_data = data.get("data", {}).get("user")
+    user_data = (data.get("data") or {}).get("user")
     if not user_data:
         raise FetchError(f"User '{username}' not found")
 
     years = user_data["contributionsCollection"]["contributionYears"]
 
     return sorted(years, reverse=True)[:5]
+
+
+def _first_graphql_error(payload: Any) -> str:  # noqa: ANN401
+    """Describe the first GraphQL error in a payload, for a warning message."""
+    if not isinstance(payload, dict):
+        return "no response payload"
+    errors = payload.get("errors") or []
+    if not errors:
+        return "no error reported"
+    first = errors[0]
+    return str(first.get("message", first)) if isinstance(first, dict) else str(first)
 
 
 async def _async_process_year_contributions(
@@ -492,12 +500,25 @@ async def _async_process_year_contributions(
             {"login": username, "from": from_date, "to": to_date},
         )
 
-        user_data = c_data.get("data", {}).get("user") if isinstance(c_data, dict) and c_data.get("data") else None
+        user_data = (c_data.get("data") or {}).get("user") if isinstance(c_data, dict) else None
         if not user_data:
+            # The usual shape of a field-level GraphQL failure for this year, so
+            # it must warn like the transport failure below rather than return
+            # quietly with the year's contributions missing from the card.
+            logger.warning(
+                "No contribution data returned for %s, its contributions are missing: %s",
+                year,
+                _first_graphql_error(c_data),
+            )
             return
 
         collection = user_data.get("contributionsCollection")
         if not collection:
+            logger.warning(
+                "No contributions collection returned for %s, its contributions are missing: %s",
+                year,
+                _first_graphql_error(c_data),
+            )
             return
 
         all_contrib_types = [
@@ -578,7 +599,6 @@ async def _async_process_year_contributions(
             "Contribution fetch failed for %s, its contributions are missing: %s",
             year,
             e,
-            extra={"username": username, "year": year},
         )
         return
 

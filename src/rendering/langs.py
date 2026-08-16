@@ -16,11 +16,12 @@ from ..core.constants import (
     LANGS_DONUT_STROKE_WIDTH,
     LANGS_DONUT_VERTICAL_CENTER_Y,
     LANGS_DONUT_VERTICAL_LEGEND_Y,
+    LANGS_LEGEND_TEXT_X,
     LANGS_PIE_RADIUS,
     MAXIMUM_LANGS_COUNT,
     MIN_CARD_WIDTH,
 )
-from ..core.utils import clamp_value, encode_html
+from ..core.utils import clamp_value, encode_html, measure_text
 from ..github.langs_fetcher import Language
 from .base import render_card
 from .colors import get_card_colors, resolve_color
@@ -272,12 +273,13 @@ def _render_donut_segments(
 
 def render_donut_layout(
     langs: list[Language],
-    width: int,
     total_score: int,
     stats_format: str,
-    text_color: str,
 ) -> str:
-    """Render donut chart layout with the legend beside the chart."""
+    """Render donut chart layout with the legend beside the chart.
+
+    Colors come from the .lang-name CSS rule, so this takes no text_color.
+    """
     center_x, center_y = 100, 100
     segments = _render_donut_segments(langs, total_score, center_x, center_y)
 
@@ -305,21 +307,46 @@ def render_donut_layout(
     """
 
 
+def donut_vertical_min_width(langs: list[Language], total_score: int, stats_format: str) -> float:
+    """
+    Narrowest card whose two-column legend does not print over itself.
+
+    Each column needs the marker offset plus its widest entry, and the two share
+    the padded body, so the card must hold twice that. Derived from the entries
+    actually rendered: a fixed floor either over-constrains short names or fails
+    to protect a long one such as "Jupyter Notebook Extension".
+    """
+    widest_entry = max(
+        (
+            measure_text(f"{lang.name} {get_display_value(lang.size, pct, stats_format)}", FONT_SIZE_LANG)
+            for lang, pct in ((lang, (lang.score / total_score) * 100 if total_score > 0 else 0) for lang in langs)
+        ),
+        default=0.0,
+    )
+    # ceil, because the caller floors when halving the body into two columns:
+    # without it a fractional text width leaves column 1 a hair too wide.
+    return 2 * math.ceil(LANGS_LEGEND_TEXT_X + widest_entry) + 2 * CARD_PADDING
+
+
 def render_donut_vertical_layout(
     langs: list[Language],
     width: int,
     total_score: int,
     stats_format: str,
-    text_color: str,
 ) -> str:
-    """Render donut chart layout with the legend stacked below the chart."""
+    """Render donut chart layout with the legend stacked below the chart.
+
+    Colors come from the .lang-name CSS rule, so this takes no text_color.
+    """
     # Centred horizontally so the ring stays balanced at any card width
     center_x = width / 2
     center_y = LANGS_DONUT_VERTICAL_CENTER_Y
     segments = _render_donut_segments(langs, total_score, center_x, center_y)
 
     # Legend below the chart, in two columns. The column width is derived from the
-    # card so the second column cannot start beyond what the card can hold.
+    # card, and render_top_languages has already widened the card to whatever
+    # donut_vertical_min_width says the entries need, so column 1's text cannot
+    # run into column 2's marker.
     half = (len(langs) + 1) // 2
     column_width = (width - 2 * CARD_PADDING) // 2
     legend_items = []
@@ -335,7 +362,7 @@ def render_donut_vertical_layout(
         <g class="stagger" style="animation-delay: {stagger_delay}ms"
            transform="translate({col * column_width}, {row * LANGS_COMPACT_ROW_HEIGHT})">
           <circle cx="5" cy="6" r="5" fill="{lang.color}" />
-          <text x="15" y="10" class="lang-name">{encode_html(lang.name)} {display_value}</text>
+          <text x="{LANGS_LEGEND_TEXT_X}" y="10" class="lang-name">{encode_html(lang.name)} {display_value}</text>
         </g>
         """)
 
@@ -467,9 +494,13 @@ def render_top_languages(
     if layout == "pie":
         height = 300 + ((len(langs) + 1) // 2) * 25
     elif layout == "donut-vertical":
-        # 25px body offset above the ring, then the legend rows, then bottom padding
+        # The body is offset by 25 (or 55 with a title, added below), then the ring,
+        # then the legend rows from LANGS_DONUT_VERTICAL_LEGEND_Y, then padding.
         rows = (len(langs) + 1) // 2
         height = LANGS_DONUT_VERTICAL_LEGEND_Y + rows * LANGS_COMPACT_ROW_HEIGHT + 45
+        # Two columns of legend text share the padded body, so a card narrower
+        # than they need would print column 1's text over column 2's marker.
+        width = int(max(width, donut_vertical_min_width(langs, total_score, stats_format)))
     elif layout == "donut":
         height = 215 + max(len(langs) - 5, 0) * 32
         width = width + 50
@@ -505,9 +536,9 @@ def render_top_languages(
     elif layout == "pie":
         final_layout = render_pie_layout(langs, total_score, stats_format, final_text_color)
     elif layout == "donut-vertical":
-        final_layout = render_donut_vertical_layout(langs, width, total_score, stats_format, final_text_color)
+        final_layout = render_donut_vertical_layout(langs, width, total_score, stats_format)
     elif layout == "donut":
-        final_layout = render_donut_layout(langs, width, total_score, stats_format, final_text_color)
+        final_layout = render_donut_layout(langs, total_score, stats_format)
     elif uses_compact_body:
         final_layout = render_compact_layout(
             langs, width, total_score, config.hide_progress, stats_format, final_text_color

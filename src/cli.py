@@ -58,6 +58,17 @@ class AliasGroup(click.Group):
         return cmd_name, cmd, remaining
 
 
+# Root package name, used to reach every `logging.getLogger(__name__)` in this
+# package. Derived from __package__ rather than __name__: under `python -m
+# src.cli` this module's __name__ is "__main__", which would attach the handler
+# to a logger no fetcher ever writes to and make --debug silently inert.
+_PACKAGE_LOGGER_NAME = (__package__ or __name__).split(".", 1)[0]
+
+# Marks the handler this module installed, so repeated calls replace only their
+# own handler and leave any the host process attached in place.
+_OWN_HANDLER_FLAG = "_github_stats_card_cli_handler"
+
+
 def _configure_logging(debug: bool) -> None:
     """
     Route this package's warnings to stderr so partial results are never silent.
@@ -71,18 +82,23 @@ def _configure_logging(debug: bool) -> None:
     has a handler, which would make --debug silently ineffective inside a host
     process, and raising the *root* level would also turn on httpx and httpcore
     debug output that has nothing to do with fetch diagnostics.
+
+    Only this module's own handler is replaced, and ``propagate`` is left alone,
+    so invoking a command cannot silently detach a handler an embedding host
+    installed on the same logger.
     """
-    package_logger = logging.getLogger(__name__.split(".", 1)[0])
+    package_logger = logging.getLogger(_PACKAGE_LOGGER_NAME)
 
     handler = logging.StreamHandler(sys.stderr)
     handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    setattr(handler, _OWN_HANDLER_FLAG, True)
 
     # Idempotent: repeated invocations (tests, embedded use) must not stack handlers
     for existing in list(package_logger.handlers):
-        package_logger.removeHandler(existing)
+        if getattr(existing, _OWN_HANDLER_FLAG, False):
+            package_logger.removeHandler(existing)
     package_logger.addHandler(handler)
     package_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
-    package_logger.propagate = False
 
 
 def _abort(error: Exception, debug: bool) -> None:
@@ -215,7 +231,7 @@ def cli() -> None:
 @click.option(
     "--card-width",
     type=int,
-    help="Card width in pixels",
+    help="Card width in pixels (widened automatically if the stats would not fit)",
 )
 @click.option(
     "--line-height",
@@ -691,7 +707,7 @@ def top_langs(
 @click.option(
     "--card-width",
     type=int,
-    help="Card width in pixels (default: 467)",
+    help="Card width in pixels (default: 467, minimum: 280)",
 )
 @click.option(
     "--title-color",

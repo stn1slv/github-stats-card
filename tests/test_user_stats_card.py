@@ -5,7 +5,14 @@ import re
 import pytest
 
 from src.core.config import UserStatsCardConfig
-from src.core.constants import STAT_LABEL_X_WITH_ICON, STAT_VALUE_X_POSITION
+from src.core.constants import (
+    CARD_PADDING,
+    FONT_SIZE_STAT,
+    RANK_CIRCLE_RIM_LEFT_INSET,
+    STAT_LABEL_X_WITH_ICON,
+    STAT_VALUE_X_POSITION,
+)
+from src.core.utils import measure_text
 from src.github.fetcher import UserStats
 from src.rendering.user_stats import render_user_stats_card
 
@@ -97,34 +104,72 @@ def test_render_user_stats_card_gradient_title_color_is_a_usable_hex(sample_stat
     assert "fill: #ff0000;" in svg
 
 
-def test_render_user_stats_card_keeps_the_rank_circle_inside_a_narrow_card(sample_stats):
-    """--card-width must move the rank circle, not leave it at a fixed x off the canvas.
-
-    Asserting the concrete pair rather than `rank_x < width`: the latter is
-    tautological, since rank_x is derived from the same width it is compared to.
-    """
-    svg = render_user_stats_card(sample_stats, UserStatsCardConfig(card_width=300))
-
-    # 300 is below the floor needed by the value column plus the circle, so the
-    # width clamps to 420 and the circle lands at 420 - 76.5.
-    assert '<svg width="420"' in svg
-    assert "translate(343.5, 47.5)" in svg
-    # Circle spans [rank_x - 50, rank_x + 30]; both edges must be on the canvas
-    assert 343.5 - 50 > 0
-    assert 343.5 + 30 < 420
+def _layout(svg: str) -> dict:
+    """Pull the geometry that decides whether the card overlaps itself."""
+    width = int(re.search(r'<svg width="(\d+)"', svg).group(1))
+    values = re.findall(rf'x="{STAT_VALUE_X_POSITION}" y="12.5">([^<]+)<', svg)
+    widest = max((measure_text(v, FONT_SIZE_STAT) for v in values), default=0.0)
+    rank = re.search(r'rank-circle"\s*\n?\s*transform="translate\(([\d.]+),', svg)
+    return {
+        "width": width,
+        "value_end": CARD_PADDING + STAT_VALUE_X_POSITION + widest,
+        # Rim starts 53px before the transform origin (cx=-10, r=40, stroke 6)
+        "rim_left": float(rank.group(1)) - RANK_CIRCLE_RIM_LEFT_INSET if rank else None,
+        "values": values,
+    }
 
 
-def test_render_user_stats_card_hide_rank_still_fits_a_long_value(sample_stats):
-    """Without the rank circle the floor is lower, but the value column must still fit."""
+@pytest.mark.parametrize(
+    ("kwargs", "stat_override"),
+    [
+        ({"card_width": 300}, None),
+        ({"card_width": 100}, None),
+        # The case a fixed 420px floor did not cover: a long-format value is far
+        # wider than a short-format one and used to run underneath the ring.
+        ({"card_width": 300, "number_format": "long"}, 12345678),
+        ({"number_format": "long"}, 12345678),
+        ({}, None),
+    ],
+)
+def test_render_user_stats_card_values_never_reach_the_rank_circle(sample_stats, kwargs, stat_override):
+    """The width clamp must keep the stat values clear of the ring, not merely on the canvas."""
+    if stat_override is not None:
+        sample_stats["totalStars"] = stat_override
+
+    layout = _layout(render_user_stats_card(sample_stats, UserStatsCardConfig(**kwargs)))
+
+    assert layout["rim_left"] is not None
+    assert layout["value_end"] <= layout["rim_left"], (
+        f"widest value ends at {layout['value_end']} but the rim starts at {layout['rim_left']}"
+    )
+    # And the ring itself stays on the canvas
+    assert layout["rim_left"] > 0
+    assert layout["rim_left"] + 2 * RANK_CIRCLE_RIM_LEFT_INSET < layout["width"]
+
+
+@pytest.mark.parametrize("number_format", ["short", "long"])
+def test_render_user_stats_card_hide_rank_still_fits_the_widest_value(sample_stats, number_format):
+    """Without the rank circle the floor is lower, but the value must still clear the border."""
     sample_stats["totalStars"] = 12345678
-    svg = render_user_stats_card(
-        sample_stats, UserStatsCardConfig(card_width=100, hide_rank=True, number_format="long")
+
+    layout = _layout(
+        render_user_stats_card(
+            sample_stats, UserStatsCardConfig(card_width=100, hide_rank=True, number_format=number_format)
+        )
     )
 
-    width = int(re.search(r'<svg width="(\d+)"', svg).group(1))
-    assert width == 340
-    # Value is left-anchored at 25 + 219.01; "12,345,678" runs about 84px
-    assert width > 25 + STAT_VALUE_X_POSITION + 84
+    assert layout["rim_left"] is None
+    assert layout["value_end"] + CARD_PADDING <= layout["width"]
+
+
+def test_render_user_stats_card_width_floor_tracks_the_value_width(sample_stats):
+    """A wider value must produce a wider floor, or the floor is not derived at all."""
+    sample_stats["totalStars"] = 12345678
+
+    narrow = _layout(render_user_stats_card(sample_stats, UserStatsCardConfig(card_width=1, number_format="short")))
+    wide = _layout(render_user_stats_card(sample_stats, UserStatsCardConfig(card_width=1, number_format="long")))
+
+    assert wide["width"] > narrow["width"]
 
 
 def test_render_user_stats_card_default_rank_position_is_unchanged(sample_stats):

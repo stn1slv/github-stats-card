@@ -1,23 +1,27 @@
 """User stats card SVG renderer with all customization options."""
 
+import math
 from typing import Any
 
 from ..core.config import UserStatsCardConfig
 from ..core.constants import (
     ANIMATION_INITIAL_DELAY_MS,
     ANIMATION_STAGGER_DELAY_MS,
+    CARD_PADDING,
     DEFAULT_USER_STATS_CARD_WIDTH,
-    MIN_USER_STATS_CARD_WIDTH,
-    MIN_USER_STATS_CARD_WIDTH_WITH_RANK,
+    FONT_SIZE_STAT,
+    MIN_CARD_WIDTH,
     RANK_CIRCLE_RIGHT_MARGIN,
+    RANK_CIRCLE_RIM_LEFT_INSET,
     RANK_CIRCLE_Y_OFFSET,
     STAT_LABEL_X_BASE,
     STAT_LABEL_X_WITH_ICON,
+    STAT_VALUE_RIGHT_GAP,
     STAT_VALUE_X_POSITION,
     USER_STATS_CARD_BASE_HEIGHT,
 )
 from ..core.i18n import get_translation
-from ..core.utils import encode_html, k_formatter
+from ..core.utils import encode_html, k_formatter, measure_text
 from ..github.fetcher import UserStats
 from ..github.rank import RankResult, calculate_user_rank
 from .base import render_card
@@ -182,6 +186,7 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
 
     # Build stat items SVG
     stat_items = []
+    formatted_values: list[str] = []
     for i, stat_key in enumerate(stats_to_show):
         stat = all_stats.get(stat_key)
         if not stat:
@@ -198,6 +203,8 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
                 formatted_value = f"{int(value):,}"
         else:
             formatted_value = str(value)
+
+        formatted_values.append(formatted_value)
 
         # Icon
         icon_svg = ""
@@ -225,13 +232,25 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
 
         stat_items.append(stat_svg)
 
-    # Card width. The stat-value column sits at a fixed offset and the rank circle
-    # has a fixed radius, so a width narrower than they need is clamped up rather
-    # than rendered with content spilling outside the card or overlapping. The
-    # floor differs with the rank circle: without it only the value column has to
-    # fit, but 280px is still too narrow for a long number.
-    min_width = MIN_USER_STATS_CARD_WIDTH if config.hide_rank else MIN_USER_STATS_CARD_WIDTH_WITH_RANK
-    final_width = max(config.card_width or DEFAULT_USER_STATS_CARD_WIDTH, min_width)
+    # Card width. The stat values are left-anchored at a fixed offset and the rank
+    # circle has a fixed radius, so a narrower card would either clip the value
+    # against the border or print it underneath the ring. The floor is derived
+    # from the widest value actually rendered rather than assumed: a short-format
+    # "6.6k" needs far less room than a long-format "12,345,678", so a single
+    # constant either clamps the common case too hard or fails to protect the
+    # long one. Note this measures the value column only; the labels to its left
+    # are shorter than STAT_VALUE_X_POSITION for every supported locale.
+    widest_value = max((measure_text(v, FONT_SIZE_STAT) for v in formatted_values), default=0.0)
+    value_column_end = CARD_PADDING + STAT_VALUE_X_POSITION + widest_value
+
+    if config.hide_rank:
+        min_width = value_column_end + CARD_PADDING
+    else:
+        min_width = value_column_end + STAT_VALUE_RIGHT_GAP + RANK_CIRCLE_RIM_LEFT_INSET + RANK_CIRCLE_RIGHT_MARGIN
+
+    # ceil, not int: truncating the derived floor gives back the fraction of a
+    # pixel the value column needs and reintroduces the overlap it prevents.
+    final_width = math.ceil(max(config.card_width or DEFAULT_USER_STATS_CARD_WIDTH, min_width, MIN_CARD_WIDTH))
 
     # Rank circle
     rank_svg = ""
