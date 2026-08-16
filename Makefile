@@ -15,13 +15,15 @@ help:
 	@echo "  all            - Run setup and all checks"
 
 # Install dependencies
+# --all-extras is required: pytest, mypy and ruff live in the `dev` extra, so a
+# plain `uv sync` leaves `make lint`, `make type-check` and `make test` unable to run.
 setup:
-	uv sync
+	uv sync --all-extras
 
 # Upgrade dependencies
 upgrade-deps:
 	uv lock --upgrade
-	uv sync
+	uv sync --all-extras
 
 # Run tests with coverage
 test:

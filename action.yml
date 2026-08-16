@@ -154,7 +154,17 @@ runs:
     - name: Checkout action repository
       uses: actions/checkout@v4
       with:
-        repository: stn1slv/github-stats-card
+        # Check out the same repository and ref the caller resolved this action
+        # from. Hardcoding either one is wrong: without `ref` the checkout takes
+        # the default branch, so `uses: ...@v1.1.9` would run whatever is on main
+        # and no release would be reproducible; without `repository` a fork
+        # consumer (`uses: myfork/github-stats-card@my-tag`) would look for its
+        # own tag in the upstream repository and fail.
+        # Both context values are empty when the action runs from a local path
+        # (`uses: ./`), where checkout then defaults to the caller's own
+        # repository at its current commit, which is what that case wants.
+        repository: ${{ github.action_repository }}
+        ref: ${{ github.action_ref }}
         path: .github-stats-card-action
     
     - name: Set up Python
