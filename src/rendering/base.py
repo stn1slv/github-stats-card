@@ -12,6 +12,7 @@ from ..core.constants import (
     FONT_WEIGHT_RANK,
     FONT_WEIGHT_STAT,
     FONT_WEIGHT_STAT_BOLD,
+    RANK_CIRCLE_STROKE_WIDTH,
 )
 from ..core.utils import encode_html
 from .colors import format_gradient, resolve_color
@@ -100,10 +101,6 @@ def render_card(
     # Get ring color for rank circle CSS
     ring_color = resolve_color(colors.get("ring_color") or title_color)
 
-    # Ensure ring color has # prefix if it's a hex
-    if len(ring_color) in [3, 6, 8] and not ring_color.startswith("#"):
-        ring_color = f"#{ring_color}"
-
     css = f"""
     <style>
       .header {{
@@ -132,14 +129,14 @@ def render_card(
       .rank-circle-rim {{
         stroke: {ring_color};
         fill: none;
-        stroke-width: 6;
+        stroke-width: {RANK_CIRCLE_STROKE_WIDTH};
         opacity: 0.2;
       }}
       .rank-circle {{
         stroke: {ring_color};
         stroke-dasharray: 250;
         fill: none;
-        stroke-width: 6;
+        stroke-width: {RANK_CIRCLE_STROKE_WIDTH};
         stroke-linecap: round;
         opacity: 0.8;
         transform-origin: -10px 8px;

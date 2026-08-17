@@ -14,7 +14,7 @@ from .core.config import (
     UserStatsCardConfig,
     UserStatsFetchConfig,
 )
-from .core.constants import VALID_CONTRIB_TYPES
+from .core.constants import MIN_CARD_WIDTH, VALID_CONTRIB_TYPES
 from .core.exceptions import FetchError, LanguageFetchError
 from .core.i18n import TRANSLATIONS
 from .github.fetcher import fetch_contributor_stats, fetch_user_stats
@@ -77,15 +77,17 @@ def _configure_logging(debug: bool) -> None:
     errors. Without a handler those warnings are discarded and the card renders
     with quietly wrong numbers.
 
-    The handler is attached to this package's logger rather than through
-    ``logging.basicConfig``: basicConfig is a no-op once the root logger already
-    has a handler, which would make --debug silently ineffective inside a host
-    process, and raising the *root* level would also turn on httpx and httpcore
-    debug output that has nothing to do with fetch diagnostics.
+    This is CLI-owned output, so the handler goes on this package's logger and
+    ``propagate`` is turned off. Both choices are deliberate:
 
-    Only this module's own handler is replaced, and ``propagate`` is left alone,
-    so invoking a command cannot silently detach a handler an embedding host
-    installed on the same logger.
+    * Not ``logging.basicConfig``, which is a no-op once the root logger has a
+      handler (making --debug silently inert inside a host process) and which
+      would raise the *root* level, turning on httpx and httpcore debug output.
+    * ``propagate = False``, because a host with its own root stderr handler
+      would otherwise print every warning twice.
+    * Only this module's own handler is replaced, so a handler the host attached
+      to the same logger survives, and the level is only set if the host has not
+      chosen one, so an embedding host that asked for DEBUG keeps it.
     """
     package_logger = logging.getLogger(_PACKAGE_LOGGER_NAME)
 
@@ -98,7 +100,13 @@ def _configure_logging(debug: bool) -> None:
         if getattr(existing, _OWN_HANDLER_FLAG, False):
             package_logger.removeHandler(existing)
     package_logger.addHandler(handler)
-    package_logger.setLevel(logging.DEBUG if debug else logging.WARNING)
+    package_logger.propagate = False
+
+    if debug:
+        package_logger.setLevel(logging.DEBUG)
+    elif package_logger.level == logging.NOTSET:
+        # Only when the host has not chosen a level of its own
+        package_logger.setLevel(logging.WARNING)
 
 
 def _abort(error: Exception, debug: bool) -> None:
@@ -230,7 +238,9 @@ def cli() -> None:
 )
 @click.option(
     "--card-width",
-    type=int,
+    # Bounded like the other numerics: 0 used to be read as "unset"
+    # and silently replaced by the default.
+    type=click.IntRange(min=MIN_CARD_WIDTH),
     help="Card width in pixels (widened automatically if the stats would not fit)",
 )
 @click.option(
@@ -275,7 +285,7 @@ def cli() -> None:
 @click.option(
     "--debug",
     is_flag=True,
-    help="Show the full traceback on an unexpected error and log fetch diagnostics",
+    help="Re-raise errors with a full traceback and log fetch diagnostics",
 )
 def user_stats(
     username: str,
@@ -391,6 +401,8 @@ def user_stats(
 
     except FetchError as e:
         click.echo(f"❌ Error fetching data: {e}", err=True)
+        if debug:
+            raise
         if token.startswith("ghs_") or "Resource not accessible by integration" in str(e):
             click.echo(
                 "⚠️ Note: the user-stats card needs a token that can read contribution data "
@@ -485,7 +497,9 @@ def user_stats(
 )
 @click.option(
     "--card-width",
-    type=int,
+    # Bounded like the other numerics: 0 used to be read as "unset"
+    # and silently replaced by the default.
+    type=click.IntRange(min=MIN_CARD_WIDTH),
     help="Card width in pixels (min: 280)",
 )
 @click.option(
@@ -528,7 +542,7 @@ def user_stats(
 @click.option(
     "--debug",
     is_flag=True,
-    help="Show the full traceback on an unexpected error and log fetch diagnostics",
+    help="Re-raise errors with a full traceback and log fetch diagnostics",
 )
 def top_langs(
     username: str,
@@ -649,6 +663,8 @@ def top_langs(
 
     except LanguageFetchError as e:
         click.echo(f"❌ Error fetching language data: {e}", err=True)
+        if debug:
+            raise
         sys.exit(1)
     except Exception as e:
         _abort(e, debug)
@@ -706,7 +722,9 @@ def top_langs(
 )
 @click.option(
     "--card-width",
-    type=int,
+    # Bounded like the other numerics: 0 used to be read as "unset"
+    # and silently replaced by the default.
+    type=click.IntRange(min=MIN_CARD_WIDTH),
     help="Card width in pixels (default: 467, minimum: 280)",
 )
 @click.option(
@@ -750,7 +768,7 @@ def top_langs(
 @click.option(
     "--debug",
     is_flag=True,
-    help="Show the full traceback on an unexpected error and log fetch diagnostics",
+    help="Re-raise errors with a full traceback and log fetch diagnostics",
 )
 def contrib(
     username: str,
@@ -850,6 +868,8 @@ def contrib(
 
     except FetchError as e:
         click.echo(f"❌ Error fetching data: {e}", err=True)
+        if debug:
+            raise
         sys.exit(1)
     except Exception as e:
         _abort(e, debug)

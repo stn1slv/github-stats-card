@@ -14,6 +14,9 @@ def k_formatter(num: int, precision: int | None = None) -> str:
         num: The number to format
         precision: Optional decimal places (0-2) for short format
 
+    Raises:
+        ValueError: If precision is outside 0-2
+
     Returns:
         Formatted string (e.g., "6.6k" or "6626")
 
@@ -27,6 +30,12 @@ def k_formatter(num: int, precision: int | None = None) -> str:
         >>> k_formatter(5, precision=1)
         '5'
     """
+    if precision is not None and not 0 <= precision <= 2:
+        # Rejected rather than ignored. The CLI already bounds this with an
+        # IntRange, so only a programmatic caller can get here, and silently
+        # substituting a different format is what this function used to do wrong.
+        raise ValueError(f"precision must be between 0 and 2, got {precision}")
+
     abs_num = abs(num)
     sign = -1 if num < 0 else 1
 
@@ -35,7 +44,7 @@ def k_formatter(num: int, precision: int | None = None) -> str:
     if abs_num < NUMBER_FORMAT_THOUSAND_DIVISOR:
         return str(sign * abs_num)
 
-    if precision is not None and 0 <= precision <= 2:
+    if precision is not None:
         return f"{sign * abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR:.{precision}f}k"
 
     formatted = sign * round(abs_num / NUMBER_FORMAT_THOUSAND_DIVISOR, 1)
@@ -157,8 +166,14 @@ def measure_text(text: str, font_size: int = 14) -> float:
     """
     Approximate text width in pixels.
 
-    This is a rough approximation since we can't actually measure text in Python.
-    Assumes monospace-like behavior for simplicity.
+    This is a rough approximation since we cannot measure glyphs in Python.
+    It assumes a fixed 0.6em advance per character.
+
+    The cards render proportional Segoe UI, so the result is only an estimate:
+    it over-states narrow glyphs (``i``, ``l``, ``1``) and under-states wide or
+    bold ones, and it has no notion of scripts whose advance differs from Latin.
+    Callers that size a card from it are protected against the common cases, not
+    guaranteed against every string. Do not present it as an exact measurement.
 
     Args:
         text: Text to measure

@@ -49,6 +49,11 @@ inputs:
     description: 'Hide rank circle (user-stats card only)'
     required: false
     default: 'false'
+
+  rank-icon:
+    description: 'Rank circle content: default (letter grade), github (logo above the grade) or percentile - user-stats only'
+    required: false
+    default: 'default'
   
   include-all-commits:
     description: 'Include all commits, not just current year (user-stats card only)'
@@ -199,6 +204,7 @@ runs:
         DISABLE_ANIMATIONS: ${{ inputs.disable-animations }}
         SHOW_ICONS: ${{ inputs.show-icons }}
         HIDE_RANK: ${{ inputs.hide-rank }}
+        RANK_ICON: ${{ inputs.rank-icon }}
         INCLUDE_ALL_COMMITS: ${{ inputs.include-all-commits }}
         SHOW: ${{ inputs.show }}
         LAYOUT: ${{ inputs.layout }}
@@ -243,6 +249,7 @@ runs:
         if [ "$CARD_TYPE" = "user-stats" ] || [ "$CARD_TYPE" = "stats" ]; then
           [ "$SHOW_ICONS" = "true" ] && ARGS+=(--show-icons)
           [ "$HIDE_RANK" = "true" ] && ARGS+=(--hide-rank)
+          [ -n "$RANK_ICON" ] && ARGS+=(--rank-icon "$RANK_ICON")
           [ "$INCLUDE_ALL_COMMITS" = "true" ] && ARGS+=(--include-all-commits)
           [ -n "$SHOW" ] && ARGS+=(--show "$SHOW")
           [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")

@@ -10,7 +10,7 @@ from ..core.config import ContribFetchConfig, UserStatsFetchConfig
 from ..core.constants import API_BASE_URL, VALID_CONTRIB_TYPES
 from ..core.exceptions import APIError, FetchError
 from ..core.utils import is_repo_excluded
-from .client import GitHubClient
+from .client import GitHubClient, first_graphql_error
 from .rank import calculate_repo_rank
 
 logger = logging.getLogger(__name__)
@@ -194,8 +194,7 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             raise FetchError(f"Failed to fetch data from GitHub: {e}") from e
 
         if data.get("errors"):
-            error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
-            raise FetchError(f"GraphQL error: {error_msg}")
+            raise FetchError(f"GraphQL error: {first_graphql_error(data)}")
 
         user = (data.get("data") or {}).get("user")
         if not user:
@@ -244,6 +243,13 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                     has_next_page = page_user["repositories"]["pageInfo"]["hasNextPage"]
                     end_cursor = page_user["repositories"]["pageInfo"]["endCursor"]
                 else:
+                    # A 200 carrying GraphQL errors and data:null raises no
+                    # APIError, so this needs its own warning or the shortfall
+                    # is as silent as it was before the handler below existed.
+                    logger.warning(
+                        "Repository pagination returned no data, total stars may be understated: %s",
+                        first_graphql_error(page_data),
+                    )
                     break
 
             except APIError as e:
@@ -446,27 +452,25 @@ async def _async_fetch_contribution_years(client: GitHubClient, username: str) -
         raise FetchError(f"Failed to fetch contribution years: {e}") from e
 
     if data.get("errors"):
-        error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
-        raise FetchError(f"GraphQL error: {error_msg}")
+        raise FetchError(f"GraphQL error: {first_graphql_error(data)}")
 
     user_data = (data.get("data") or {}).get("user")
     if not user_data:
         raise FetchError(f"User '{username}' not found")
 
-    years = user_data["contributionsCollection"]["contributionYears"]
+    collection = user_data.get("contributionsCollection")
+    if not collection:
+        # Restricted and SAML-protected accounts return a null collection.
+        # Indexing it raises TypeError, which reaches the user as an opaque
+        # "Unexpected error" rather than the scope problem it actually is.
+        raise FetchError(
+            f"No contribution data available for '{username}'. "
+            "This usually means the token lacks the 'read:user' scope."
+        )
+
+    years = collection.get("contributionYears") or []
 
     return sorted(years, reverse=True)[:5]
-
-
-def _first_graphql_error(payload: Any) -> str:  # noqa: ANN401
-    """Describe the first GraphQL error in a payload, for a warning message."""
-    if not isinstance(payload, dict):
-        return "no response payload"
-    errors = payload.get("errors") or []
-    if not errors:
-        return "no error reported"
-    first = errors[0]
-    return str(first.get("message", first)) if isinstance(first, dict) else str(first)
 
 
 async def _async_process_year_contributions(
@@ -508,7 +512,7 @@ async def _async_process_year_contributions(
             logger.warning(
                 "No contribution data returned for %s, its contributions are missing: %s",
                 year,
-                _first_graphql_error(c_data),
+                first_graphql_error(c_data),
             )
             return
 
@@ -517,7 +521,7 @@ async def _async_process_year_contributions(
             logger.warning(
                 "No contributions collection returned for %s, its contributions are missing: %s",
                 year,
-                _first_graphql_error(c_data),
+                first_graphql_error(c_data),
             )
             return
 

@@ -5,6 +5,8 @@ import re
 import pytest
 
 from src.core.config import LangsCardConfig
+from src.core.constants import CARD_PADDING, FONT_SIZE_LANG, LANGS_LEGEND_TEXT_X
+from src.core.utils import measure_text
 from src.github.langs_fetcher import Language
 from src.rendering.langs import (
     format_bytes,
@@ -236,7 +238,13 @@ def test_donut_vertical_with_hide_progress_is_not_sized_as_a_compact_card(sample
 
 
 def test_donut_vertical_legend_second_column_stays_inside_the_card(sample_langs):
-    """A long language name in column 2 used to run past the right border."""
+    """A long language name in column 1 must not run into column 2's marker.
+
+    Measures the rendered text extent against the rendered column boundary. The
+    previous version compared `second_column` against the formula it is computed
+    from, so it reduced to `floor(x) <= x` and passed with the width derivation
+    removed entirely.
+    """
     long_name = "Jupyter Notebook Extension"
     langs = dict(sample_langs)
     langs[long_name] = Language(name=long_name, color="#DA5B0B", size=900, count=1, score=900)
@@ -244,9 +252,30 @@ def test_donut_vertical_legend_second_column_stays_inside_the_card(sample_langs)
     svg = render_top_languages(langs, LangsCardConfig(layout="donut-vertical"))
 
     width = int(re.search(r'<svg width="(\d+)"', svg).group(1))
-    column_offsets = {float(x) for x in re.findall(r'transform="translate\(([\d.]+), \d+\)"', svg)}
+    entries = [e.strip() for e in re.findall(r'class="lang-name">([^<]+)<', svg)]
+    assert any(long_name in e for e in entries), "the long entry must actually be rendered"
+
+    widest = max(measure_text(e, FONT_SIZE_LANG) for e in entries)
+    column_offsets = [float(x) for x in re.findall(r'transform="translate\(([\d.]+), \d+\)"', svg)]
     second_column = max(column_offsets)
 
-    # Column 2 starts inside the padded body and leaves room for its text
-    assert second_column <= (width - 2 * 25) / 2
-    assert 25 + second_column + 15 < width
+    # Column 1's widest text must stop before column 2's marker starts...
+    col1_text_end = CARD_PADDING + LANGS_LEGEND_TEXT_X + widest
+    assert col1_text_end <= CARD_PADDING + second_column, (
+        f"column 1 text ends at {col1_text_end}, column 2 starts at {CARD_PADDING + second_column}"
+    )
+    # ...and column 2's text must stop before the border
+    col2_text_end = CARD_PADDING + second_column + LANGS_LEGEND_TEXT_X + widest
+    assert col2_text_end <= width, f"column 2 text ends at {col2_text_end}, card is {width} wide"
+
+
+def test_donut_vertical_width_grows_with_the_longest_entry(sample_langs):
+    """The floor must be derived from the entries rendered, not a constant."""
+    long_name = "Jupyter Notebook Extension With A Very Long Name"
+    langs = dict(sample_langs)
+    langs[long_name] = Language(name=long_name, color="#DA5B0B", size=900, count=1, score=900)
+
+    short = render_top_languages(sample_langs, LangsCardConfig(layout="donut-vertical"))
+    wide = render_top_languages(langs, LangsCardConfig(layout="donut-vertical"))
+
+    assert int(re.search(r'<svg width="(\d+)"', wide).group(1)) > int(re.search(r'<svg width="(\d+)"', short).group(1))

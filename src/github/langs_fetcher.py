@@ -7,7 +7,7 @@ from ..core.config import LangsFetchConfig
 from ..core.constants import DEFAULT_LANG_COLOR
 from ..core.exceptions import APIError, LanguageFetchError
 from ..core.utils import is_repo_excluded
-from .client import GitHubClient
+from .client import GitHubClient, first_graphql_error
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +74,7 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
             raise LanguageFetchError(f"Failed to fetch data from GitHub API: {e}") from e
 
         if data.get("errors"):
-            error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
-            raise LanguageFetchError(f"GitHub API error: {error_msg}")
+            raise LanguageFetchError(f"GitHub API error: {first_graphql_error(data)}")
 
         if "data" not in data or not data["data"]:
             raise LanguageFetchError("No data returned from GitHub API")
@@ -95,6 +94,12 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
                 page_data = client.graphql_query(query, {"login": username, "after": page_info["endCursor"]})
                 page_user = (page_data.get("data") or {}).get("user")
                 if not page_user:
+                    # A 200 carrying GraphQL errors and data:null raises no
+                    # APIError, so the handler below never sees it.
+                    logger.warning(
+                        "Repository pagination returned no data, language totals may be incomplete: %s",
+                        first_graphql_error(page_data),
+                    )
                     break
                 page_repos = page_user.get("repositories", {})
                 repos.extend(page_repos.get("nodes", []))

@@ -23,7 +23,7 @@ The project uses `uv` for all lifecycle tasks.
 
 *   **Install Dependencies:**
     ```bash
-    uv sync
+    make setup   # uv sync --all-extras; the dev tooling lives in the `dev` extra
     ```
 
 *   **Run the CLI (Development):**
@@ -40,19 +40,22 @@ The project uses `uv` for all lifecycle tasks.
 
 *   **Run Tests:**
     ```bash
-    uv run pytest
+    make test
     ```
 
 *   **Linting & Formatting:**
     ```bash
-    uv run ruff check src tests
-    uv run ruff format src tests
+    make lint          # ruff check
+    make format        # ruff format (rewrites files)
+    make format-check  # ruff format --check, the CI gate
     ```
 
 *   **Type Checking:**
     ```bash
-    uv run mypy src
+    make type-check
     ```
+
+> Prefer the `make` targets over bare `uv run`: each target passes `--extra dev` explicitly, because whether `uv run` preserves extras from an earlier sync has varied between uv versions.
 
 **Development Conventions**
 
@@ -151,7 +154,8 @@ The project uses `uv` for all lifecycle tasks.
 ### Card width floors are measured, never hardcoded (2026-08-16)
 - **Decision:** `--card-width` is a request, not a guarantee. `render_user_stats_card` and `render_top_languages` compute the narrowest width the content actually needs using `core.utils.measure_text`, then clamp up to it.
 - **Rationale:** Stat values, the rank circle and the two-column legends sit at fixed offsets, so a narrow card printed content off the canvas or on top of the ring. A single constant cannot work: a short-format `6.6k` needs ~270px of value column while a long-format `12,345,678` needs ~330px, so any fixed floor is either too aggressive for the common case or too small for the long one. Two successive fixed floors (420, then 340) were both measured wrong before this approach.
-- **Gotcha:** Use `math.ceil` on the derived floor, never `int()`. Both call sites later floor when halving the body into columns, so truncating gives back the fraction of a pixel the content needed and reintroduces the overlap. The tests assert the no-overlap property with `measure_text`, not magic numbers, precisely so a changed constant cannot pass them.
+- **Gotcha:** Use `math.ceil` on the derived floor, never `int()`. Both call sites later floor when halving the body into columns, so truncating gives back the fraction of a pixel the content needed and reintroduces the overlap.
+- **Limit:** `measure_text` is `len(text) * font_size * 0.6`, a monospace approximation of proportional bold Segoe UI. The floors and the tests both use it, so the tests prove the renderer agrees with the estimate, not that a browser will never overlap. Wide glyphs, bold digits and non-Latin scripts can still exceed it, and only the value column is measured, not the labels. Treat it as protection against the common cases, not a guarantee.
 
 ### Fetch degradation logs, it never returns silently (2026-08-16)
 - **Decision:** Fetchers that continue with partial data (pagination cut short, a search fallback, a dropped contribution year) emit `logger.warning` with the cause interpolated into the message. `cli._configure_logging` attaches a stderr handler to the package logger.

@@ -1,5 +1,6 @@
 """User stats card SVG renderer with all customization options."""
 
+import logging
 import math
 from typing import Any
 
@@ -27,6 +28,8 @@ from ..github.rank import RankResult, calculate_user_rank
 from .base import render_card
 from .colors import get_card_colors
 from .icons import get_icon_svg
+
+logger = logging.getLogger(__name__)
 
 
 def _get_stat_definitions(stats: UserStats, locale: str) -> dict[str, dict[str, Any]]:
@@ -250,7 +253,17 @@ def render_user_stats_card(stats: UserStats, config: UserStatsCardConfig) -> str
 
     # ceil, not int: truncating the derived floor gives back the fraction of a
     # pixel the value column needs and reintroduces the overlap it prevents.
-    final_width = math.ceil(max(config.card_width or DEFAULT_USER_STATS_CARD_WIDTH, min_width, MIN_CARD_WIDTH))
+    requested_width = config.card_width or DEFAULT_USER_STATS_CARD_WIDTH
+    final_width = math.ceil(max(requested_width, min_width, MIN_CARD_WIDTH))
+
+    if config.card_width and final_width > config.card_width:
+        # Widening is a degradation of what was asked for, so it says so rather
+        # than silently returning a different card than the one requested.
+        logger.warning(
+            "Requested card width %spx cannot fit the stats; widened to %spx",
+            config.card_width,
+            final_width,
+        )
 
     # Rank circle
     rank_svg = ""

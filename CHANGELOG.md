@@ -13,14 +13,15 @@ These inputs used to accept a wider range of values and degrade silently. They n
 - `--number-precision` is limited to `0`-`2`, the range the help text always documented. Out-of-range values used to be ignored without a word.
 - `--limit` (contrib card) must be at least `1`. The value feeds a list slice, so `0` produced an empty card and `-1` silently dropped the last repository.
 - `--include-all-commits` can no longer be combined with `--commits-year`. The all-time commit search overwrote the year-filtered count, so the year filter was discarded without notice.
-- `--card-width` is widened rather than honoured literally when the content would not fit. Stats sit at fixed offsets, so a narrower card rendered the rank circle outside the canvas, printed stat values underneath the ring, or dropped the contrib rank badge on top of the avatar. The floor is measured from what is actually rendered, so a long `--number-format long` value or a long language name in a `donut-vertical` legend widens the card further than short ones do. The contrib and top-langs cards keep a flat 280px floor.
+- `--card-width` is widened rather than honoured literally when the content would not fit. Stats sit at fixed offsets, so a narrower card rendered the rank circle outside the canvas, printed stat values underneath the ring, or dropped the contrib rank badge on top of the avatar. The floor is estimated from what is actually rendered, so a long `--number-format long` value or a long language name in a `donut-vertical` legend widens the card further than short ones do, and the widening is logged. The estimate assumes a fixed character width, so unusually wide glyphs can still exceed it. The contrib and top-langs cards keep a flat 280px floor.
 - The `donut-vertical` top-langs layout now renders an actual vertical donut (ring above, legend below) instead of the pie layout it previously duplicated. Its default card width is 467px rather than 300px so the two-column legend fits.
 
 ### Added
 
-- `--debug` on all three commands. It re-raises the original exception with its traceback instead of collapsing to a single line, and raises this package's log level to `DEBUG`.
-- `--rank-icon` is implemented. `percentile` renders the percentile value the rank is derived from, `github` renders the GitHub mark above the letter grade, and `default` keeps the letter grade alone. The option previously parsed and validated but had no effect.
-- CI workflow (`.github/workflows/ci.yml`) running format check, lint, type check and tests on every push and pull request.
+- `--debug` on all three commands. It re-raises the original exception with its traceback instead of collapsing to a single line, including fetch failures, and raises this package's log level to `DEBUG`.
+- `rank-icon` as a GitHub Action input, and `--rank-icon` is implemented. `percentile` renders the percentile value the rank is derived from, `github` renders the GitHub mark above the letter grade, and `default` keeps the letter grade alone. The option previously parsed and validated but had no effect.
+- CI workflow (`.github/workflows/ci.yml`) running format check, lint, type check and tests on every push and pull request, against the committed lockfile.
+- `make format-check`, so CI's formatting gate can be reproduced locally.
 
 ### Fixed
 
@@ -37,5 +38,5 @@ These inputs used to accept a wider range of values and degrade silently. They n
 
 ### Removed
 
-- Nine unused rank threshold constants from `core/constants.py`. They described a different scale from the one `rank.py` actually applies and were never read.
+- Nineteen unused constants from `core/constants.py`, including the nine rank thresholds that described a different scale from the one `rank.py` applies. `RANK_CIRCLE_RIM_LEFT_INSET` is now derived from the radius and stroke width rather than hand-computed beside them.
 - The unused `color` parameter of `get_icon_svg`, and the unused `text_color` parameter of both donut layout renderers. Colours come from CSS rules, so the arguments were always discarded.

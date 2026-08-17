@@ -1,5 +1,6 @@
 """Tests for user stats card rendering."""
 
+import logging
 import re
 
 import pytest
@@ -231,3 +232,20 @@ def test_render_user_stats_card_show_icons(sample_stats):
 
     assert svg.count('data-testid="icon"') == 5
     assert f'x="{STAT_LABEL_X_WITH_ICON}"' in svg
+
+
+def test_render_user_stats_card_warns_when_the_width_is_widened(sample_stats, caplog):
+    """Widening is a degradation of what was asked for, so it must not be silent."""
+    sample_stats["totalStars"] = 12345678
+
+    with caplog.at_level(logging.WARNING, logger="src.rendering.user_stats"):
+        render_user_stats_card(sample_stats, UserStatsCardConfig(card_width=300, number_format="long"))
+
+    assert "widened" in caplog.text
+
+
+def test_render_user_stats_card_does_not_warn_when_the_width_fits(sample_stats, caplog):
+    with caplog.at_level(logging.WARNING, logger="src.rendering.user_stats"):
+        render_user_stats_card(sample_stats, UserStatsCardConfig(card_width=800))
+
+    assert caplog.text == ""

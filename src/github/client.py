@@ -10,6 +10,30 @@ from ..core.constants import API_TIMEOUT, GRAPHQL_ENDPOINT
 from ..core.exceptions import APIError
 
 
+def first_graphql_error(payload: object) -> str:
+    """
+    Describe the first GraphQL error in a response payload.
+
+    Tolerates the shapes a real API and its proxies produce: a missing or empty
+    ``errors`` list, and entries that are plain strings rather than objects with
+    a ``message``. Indexing or calling ``.get`` on those raises, which turns a
+    reportable API failure into an opaque crash.
+
+    Args:
+        payload: Decoded GraphQL response, or anything at all
+
+    Returns:
+        Human-readable description of the first error
+    """
+    if not isinstance(payload, dict):
+        return "no response payload"
+    errors = payload.get("errors") or []
+    if not errors:
+        return "no error reported"
+    first = errors[0]
+    return str(first.get("message", first)) if isinstance(first, dict) else str(first)
+
+
 class GitHubClient:
     """Helper client for GitHub API interactions."""
 

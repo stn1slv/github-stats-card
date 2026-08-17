@@ -1,5 +1,6 @@
 """Top Languages card renderer with multiple layout styles."""
 
+import logging
 import math
 
 from ..core.config import LangsCardConfig
@@ -9,6 +10,7 @@ from ..core.constants import (
     DEFAULT_LANGS_CARD_WIDTH,
     DEFAULT_LANGS_COMPACT_WIDTH,
     FONT_SIZE_LANG,
+    HIDDEN_TITLE_BODY_OFFSET,
     LANGS_COMPACT_COLUMN_WIDTH,
     LANGS_COMPACT_COLUMN_WIDTH_WIDE,
     LANGS_COMPACT_ROW_HEIGHT,
@@ -25,6 +27,8 @@ from ..core.utils import clamp_value, encode_html, measure_text
 from ..github.langs_fetcher import Language
 from .base import render_card
 from .colors import get_card_colors, resolve_color
+
+logger = logging.getLogger(__name__)
 
 
 def trim_top_languages(
@@ -494,13 +498,23 @@ def render_top_languages(
     if layout == "pie":
         height = 300 + ((len(langs) + 1) // 2) * 25
     elif layout == "donut-vertical":
-        # The body is offset by 25 (or 55 with a title, added below), then the ring,
-        # then the legend rows from LANGS_DONUT_VERTICAL_LEGEND_Y, then padding.
+        # Legend rows start at LANGS_DONUT_VERTICAL_LEGEND_Y inside the body, and
+        # the last row's text baseline sits 10px into its row. The +30 for the
+        # title is added below, so only the hidden-title offset belongs here.
         rows = (len(langs) + 1) // 2
-        height = LANGS_DONUT_VERTICAL_LEGEND_Y + rows * LANGS_COMPACT_ROW_HEIGHT + 45
+        height = (
+            HIDDEN_TITLE_BODY_OFFSET + LANGS_DONUT_VERTICAL_LEGEND_Y + rows * LANGS_COMPACT_ROW_HEIGHT + CARD_PADDING
+        )
         # Two columns of legend text share the padded body, so a card narrower
         # than they need would print column 1's text over column 2's marker.
-        width = int(max(width, donut_vertical_min_width(langs, total_score, stats_format)))
+        needed = donut_vertical_min_width(langs, total_score, stats_format)
+        if config.card_width and needed > config.card_width:
+            logger.warning(
+                "Requested card width %spx cannot fit the legend; widened to %spx",
+                config.card_width,
+                math.ceil(needed),
+            )
+        width = math.ceil(max(width, needed))
     elif layout == "donut":
         height = 215 + max(len(langs) - 5, 0) * 32
         width = width + 50

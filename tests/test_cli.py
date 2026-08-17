@@ -1,5 +1,6 @@
 """Integration tests for CLI commands."""
 
+import io
 import logging
 import re
 from pathlib import Path
@@ -331,16 +332,116 @@ def test_configure_logging_makes_the_fetch_warning_cause_visible_on_stderr(capsy
 
 
 def test_configure_logging_is_idempotent_and_survives_a_configured_root(capsys, restore_logging):
-    """basicConfig is a no-op once the root logger has a handler; this must not be."""
+    """A host with its own root handler must not silence us or double our output.
+
+    `logging.basicConfig` cannot set this scenario up: pytest's logging plugin
+    has already attached a root handler, so basicConfig returns early and the
+    previous version of this test simulated nothing at all.
+    """
     from src.cli import _configure_logging
 
-    logging.basicConfig(level=logging.CRITICAL)  # simulate a host process
+    root = logging.getLogger()
+    host_stream = io.StringIO()
+    host_handler = logging.StreamHandler(host_stream)
+    root.addHandler(host_handler)
+    root.setLevel(logging.DEBUG)
+
     _configure_logging(debug=False)
     _configure_logging(debug=True)
 
-    logger = logging.getLogger("src.github.fetcher")
-    logger.debug("debug diagnostic")
+    logging.getLogger("src.github.fetcher").debug("debug diagnostic")
 
     stderr = capsys.readouterr().err
-    # --debug took effect despite the pre-configured root, and only once
-    assert stderr.count("debug diagnostic") == 1
+    # --debug took effect despite the pre-configured root...
+    assert stderr.count("debug diagnostic") == 1, "expected exactly one line on stderr"
+    # ...and the host's root handler did not also receive it, so no duplication
+    assert host_stream.getvalue() == ""
+
+
+def test_configure_logging_keeps_a_level_the_host_chose(restore_logging):
+    """An embedding host that asked for DEBUG must not be reset to WARNING."""
+    from src.cli import _PACKAGE_LOGGER_NAME, _configure_logging
+
+    logging.getLogger(_PACKAGE_LOGGER_NAME).setLevel(logging.DEBUG)
+    _configure_logging(debug=False)
+
+    assert logging.getLogger(_PACKAGE_LOGGER_NAME).level == logging.DEBUG
+
+
+def test_configure_logging_preserves_a_handler_the_host_attached(restore_logging):
+    """Only this module's own handler may be replaced on repeated invocations."""
+    from src.cli import _OWN_HANDLER_FLAG, _PACKAGE_LOGGER_NAME, _configure_logging
+
+    package_logger = logging.getLogger(_PACKAGE_LOGGER_NAME)
+    host_handler = logging.StreamHandler(io.StringIO())
+    package_logger.addHandler(host_handler)
+
+    _configure_logging(debug=False)
+    _configure_logging(debug=False)
+
+    assert host_handler in package_logger.handlers
+    # Ours is present exactly once, not stacked. Counted by the sentinel rather
+    # than "everything that is not the host handler", because pytest's caplog
+    # attaches its own capture handlers to this same logger.
+    ours = [h for h in package_logger.handlers if getattr(h, _OWN_HANDLER_FLAG, False)]
+    assert len(ours) == 1
+
+
+def test_action_yml_declares_every_input_the_readme_advertises():
+    """A README-only input reaches consumers as 'Unexpected input(s)'."""
+    action = ACTION_YML.read_text()
+    readme = (ACTION_YML.parent / "README.md").read_text()
+
+    section = readme.split("### Card-Specific Inputs")[1].split("---")[0]
+    # Only the top-level card bullets name inputs. Indented sub-bullets list
+    # allowed *values* of an input, and so do parenthesised groups, so both are
+    # dropped before extracting names.
+    advertised: set[str] = set()
+    for line in section.splitlines():
+        if not line.startswith("- **"):
+            continue
+        without_values = re.sub(r"\([^)]*\)", "", line)
+        advertised |= set(re.findall(r"`([a-z][a-z0-9-]*)`", without_values))
+
+    declared = set(re.findall(r"^  ([a-z][a-z0-9-]+):$", action, re.MULTILINE))
+
+    assert advertised, "no inputs parsed from the README; the section format changed"
+    missing = advertised - declared
+    assert not missing, f"README advertises action inputs that action.yml does not declare: {sorted(missing)}"
+
+
+def test_action_yml_forwards_rank_icon():
+    """--rank-icon is implemented in the CLI; the action must be able to reach it."""
+    action = ACTION_YML.read_text()
+
+    assert "rank-icon:" in action
+    assert "RANK_ICON: ${{ inputs.rank-icon }}" in action
+    assert 'ARGS+=(--rank-icon "$RANK_ICON")' in action
+    assert "--rank-icon" in {opt for param in cli.commands["user-stats"].params for opt in param.opts}
+
+
+def test_user_stats_rejects_a_card_width_below_the_minimum():
+    """0 used to be read as 'unset' and silently replaced by the default."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["user-stats", "-u", "u", "-t", "t", "-o", "s.svg", "--card-width", "0"])
+
+    assert result.exit_code != 0
+    assert "--card-width" in result.stderr
+
+
+def test_package_logger_name_survives_being_run_as_a_module():
+    """Under `python -m src.cli` this module's __name__ is "__main__".
+
+    Deriving the logger name from __name__ would attach the handler to a logger
+    no fetcher ever writes to, silently disabling both the warnings and --debug.
+    """
+    import src.cli as cli_module
+    from src.github import fetcher
+
+    # The name must come from the package, not the module
+    expected = cli_module.__package__.split(".", 1)[0]
+    assert expected == cli_module._PACKAGE_LOGGER_NAME
+    assert cli_module._PACKAGE_LOGGER_NAME != "__main__"
+
+    # And it must actually be an ancestor of the loggers the fetchers use
+    assert fetcher.logger.name.startswith(f"{cli_module._PACKAGE_LOGGER_NAME}.")
