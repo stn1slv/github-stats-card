@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-08-17
+
+### Fixed
+
+- **The action produced no card at all in 1.2.0.** The self-checkout used `${{ github.action_repository }}` and `${{ github.action_ref }}`, which inside a composite action resolve to the *innermost* action rather than the outer one. Every run therefore checked out `actions/checkout@v4` into the install directory, then exited without installing or generating anything. Combined with a `continue-on-error: true` step, which is common in these workflows, the run went green while silently regenerating nothing.
+- The action no longer checks itself out. It installs from `$GITHUB_ACTION_PATH`, where the runner has already placed this repository at exactly the ref the caller pinned, so the code that runs cannot drift from the pin.
+
+**Anyone on 1.2.0 should move to 1.2.1.** Cards stopped being regenerated without any error being reported. Releases up to and including 1.1.10 are unaffected by this specific bug, though they still ignore the pin and run `main`.
+
 ## [1.2.0] - 2026-08-17
 
 ### Breaking
@@ -25,7 +34,7 @@ These inputs used to accept a wider range of values and degrade silently. They n
 
 ### Fixed
 
-- **The action now runs the version you pin.** The composite action checked out its own repository without a `ref`, so it always took the default branch: `uses: stn1slv/github-stats-cards@v1.1.9` ran whatever was on `main`. Both `repository` and `ref` now come from `github.action_repository` and `github.action_ref`, which also makes the action work for fork consumers.
+- **The action now runs the version you pin.** The composite action checked out its own repository without a `ref`, so it always took the default branch: `uses: stn1slv/github-stats-cards@v1.1.9` ran whatever was on `main`. (The fix shipped in 1.2.0 was itself broken and produced no card; see 1.2.1.)
 - Gradient colours in non-background slots (`--title-color`, `--text-color`, `--border-color`, `--icon-color`) leaked a Python list into the SVG as `fill: ['90', 'ff0000', '00ff00']`, which is invalid CSS and silently fell back to the browser default. They now collapse to the gradient's first colour stop.
 - `--number-precision` divided by 1000 and appended `k` regardless of magnitude, so 5 stars rendered as `0.0k` and 999 rounded up to `1k`.
 - API failures during repository pagination, the all-commits search, the issue search, the discussions query, a contribution year, and language pagination were swallowed in silence, producing a plausible card with wrong numbers. Each now writes a warning to stderr naming both the degradation and its cause.

@@ -156,22 +156,6 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout action repository
-      uses: actions/checkout@v4
-      with:
-        # Check out the same repository and ref the caller resolved this action
-        # from. Hardcoding either one is wrong: without `ref` the checkout takes
-        # the default branch, so `uses: ...@v1.1.9` would run whatever is on main
-        # and no release would be reproducible; without `repository` a fork
-        # consumer (`uses: myfork/github-stats-cards@my-tag`) would look for its
-        # own tag in the upstream repository and fail.
-        # Both context values are empty when the action runs from a local path
-        # (`uses: ./`), where checkout then defaults to the caller's own
-        # repository at its current commit, which is what that case wants.
-        repository: ${{ github.action_repository }}
-        ref: ${{ github.action_ref }}
-        path: .github-stats-card-action
-    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -183,9 +167,17 @@ runs:
     
     - name: Install github-stats-card
       shell: bash
-      run: |
-        cd .github-stats-card-action
-        uv pip install --system -e .
+      # Installs from GITHUB_ACTION_PATH, where the runner has already placed
+      # this action's own repository at exactly the ref the caller pinned.
+      #
+      # Do NOT reintroduce a self-checkout. Without a `ref` it silently took the
+      # default branch, so a pinned tag ran main's code. With
+      # `${{ github.action_repository }}` / `${{ github.action_ref }}` it is
+      # worse: inside a composite action those resolve to the *innermost*
+      # action, so v1.2.0 checked out `actions/checkout@v4` into the install
+      # directory and produced no card at all. GITHUB_ACTION_PATH has no such
+      # ambiguity because the runner resolved the pin before the action started.
+      run: uv pip install --system -e "$GITHUB_ACTION_PATH"
     
     - name: Generate card
       id: generate

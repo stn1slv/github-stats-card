@@ -199,19 +199,33 @@ def test_action_yml_forwards_a_flag_the_contrib_command_accepts():
     assert not [ln for ln in executable if re.search(r"\beval\b", ln)]
 
 
-def test_action_yml_checks_out_the_ref_the_caller_pinned():
-    """A consumer pinning @v1.2.3 must run that tag's code, not whatever is on the default branch."""
+def test_action_yml_installs_from_the_action_path_and_never_self_checks_out():
+    """A consumer pinning @v1.2.3 must run that tag's code.
+
+    Two self-checkout attempts have failed in production:
+
+    * No `ref` at all, which silently took the default branch, so a pinned tag
+      ran whatever was on main.
+    * `${{ github.action_repository }}` / `${{ github.action_ref }}`, which
+      inside a composite action resolve to the *innermost* action. v1.2.0
+      checked out `actions/checkout@v4` into the install directory and produced
+      no card at all, with no error.
+
+    GITHUB_ACTION_PATH is what the runner already resolved from the caller's
+    pin, so it cannot drift from it. This test forbids the checkout coming back.
+    """
     action = ACTION_YML.read_text()
 
-    # The checkout of the action's own repository must carry an explicit ref.
-    # Without one, actions/checkout silently takes the default branch, so every
-    # released tag would run main and no release would be reproducible.
-    checkout_step = action.split("- name: Checkout action repository", 1)[1].split("- name:", 1)[0]
-    # Both must come from context. A hardcoded repository breaks fork consumers,
-    # who would look for their own tag in the upstream repository.
-    assert "repository: ${{ github.action_repository }}" in checkout_step
-    assert "ref: ${{ github.action_ref }}" in checkout_step
-    assert not re.search(r"repository: stn1slv/", checkout_step)
+    # The action must install from the path the runner resolved
+    assert 'uv pip install --system -e "$GITHUB_ACTION_PATH"' in action
+
+    # And must not check out its own repository under any spelling
+    executable = [ln for ln in action.splitlines() if not ln.strip().startswith("#")]
+    body = "\n".join(executable)
+    assert "github.action_repository" not in body
+    assert "github.action_ref" not in body
+    assert "Checkout action repository" not in body
+    assert ".github-stats-card-action" not in body
 
 
 def test_contrib_command_with_invalid_types():

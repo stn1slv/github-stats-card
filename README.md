@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Generate GitHub Stats Card
-        uses: stn1slv/github-stats-cards@v1.2.0
+        uses: stn1slv/github-stats-cards@v1.2.1
         with:
           card-type: user-stats
           username: ${{ github.repository_owner }}
@@ -167,7 +167,7 @@ This tool is compatible with GitHub Enterprise Server. Configure custom API endp
 
 ```yaml
 - name: Generate GitHub Stats Card
-  uses: stn1slv/github-stats-cards@v1.2.0
+  uses: stn1slv/github-stats-cards@v1.2.1
   env:
     GITHUB_API_URL: https://github.enterprise.com/api/v3
   with:
