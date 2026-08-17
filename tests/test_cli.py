@@ -211,7 +211,7 @@ def test_action_yml_checks_out_the_ref_the_caller_pinned():
     # who would look for their own tag in the upstream repository.
     assert "repository: ${{ github.action_repository }}" in checkout_step
     assert "ref: ${{ github.action_ref }}" in checkout_step
-    assert "stn1slv/github-stats-card" not in checkout_step
+    assert not re.search(r"repository: stn1slv/", checkout_step)
 
 
 def test_contrib_command_with_invalid_types():

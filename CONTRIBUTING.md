@@ -16,8 +16,8 @@ Thank you for your interest in contributing! This document provides guidelines a
 1. **Fork and clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/github-stats-card.git
-   cd github-stats-card
+   git clone https://github.com/yourusername/github-stats-cards.git
+   cd github-stats-cards
    ```
 
 2. **Create a virtual environment**
