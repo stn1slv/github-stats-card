@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import logging
 from typing import Any, TypedDict
 from urllib.parse import quote
 
@@ -9,8 +10,10 @@ from ..core.config import ContribFetchConfig, UserStatsFetchConfig
 from ..core.constants import API_BASE_URL, VALID_CONTRIB_TYPES
 from ..core.exceptions import APIError, FetchError
 from ..core.utils import is_repo_excluded
-from .client import GitHubClient
+from .client import GitHubClient, first_graphql_error
 from .rank import calculate_repo_rank
+
+logger = logging.getLogger(__name__)
 
 
 class ContributorRepo(TypedDict):
@@ -182,20 +185,20 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             }
             """
 
-        # Execute GraphQL query
+        # Execute GraphQL query. Only the transport call belongs in the try:
+        # FetchError subclasses APIError, so a FetchError raised inside would be
+        # caught by the handler below and wrapped in its own message.
         try:
             data = client.graphql_query(query, variables)
-
-            if "errors" in data:
-                error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
-                raise FetchError(f"GraphQL error: {error_msg}")
-
-            user = data.get("data", {}).get("user")
-            if not user:
-                raise FetchError(f"User '{username}' not found")
-
         except APIError as e:
             raise FetchError(f"Failed to fetch data from GitHub: {e}") from e
+
+        if data.get("errors"):
+            raise FetchError(f"GraphQL error: {first_graphql_error(data)}")
+
+        user = (data.get("data") or {}).get("user")
+        if not user:
+            raise FetchError(f"User '{username}' not found")
 
         # Extract totalCount from the first page — pagination queries omit this field
         total_repos = user["repositories"]["totalCount"]
@@ -234,16 +237,28 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
             try:
                 page_data = client.graphql_query(pagination_query, {"login": username, "after": end_cursor})
 
-                page_user = page_data.get("data", {}).get("user")
+                page_user = (page_data.get("data") or {}).get("user")
                 if page_user:
                     total_stars += sum(repo["stargazers"]["totalCount"] for repo in page_user["repositories"]["nodes"])
                     has_next_page = page_user["repositories"]["pageInfo"]["hasNextPage"]
                     end_cursor = page_user["repositories"]["pageInfo"]["endCursor"]
                 else:
+                    # A 200 carrying GraphQL errors and data:null raises no
+                    # APIError, so this needs its own warning or the shortfall
+                    # is as silent as it was before the handler below existed.
+                    logger.warning(
+                        "Repository pagination returned no data, total stars may be understated: %s",
+                        first_graphql_error(page_data),
+                    )
                     break
 
-            except APIError:
-                # If pagination fails, continue with what we have
+            except APIError as e:
+                # Continue with what we have, but say so: the star total is now
+                # short by every repository on the pages that were not read.
+                logger.warning(
+                    "Repository pagination failed, total stars may be understated: %s",
+                    e,
+                )
                 break
 
         # Get total commits
@@ -257,18 +272,22 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
                     headers={"Accept": "application/vnd.github.cloak-preview+json"},
                 )
                 total_commits = search_data.get("total_count", total_commits)
-            except APIError:
-                # If REST API fails, use GraphQL data
-                pass
+            except APIError as e:
+                logger.warning(
+                    "All-commits search failed, falling back to this year's commit count: %s",
+                    e,
+                )
 
         # Use REST API to get accurate issue count (includes issues in repos user doesn't own)
         total_issues = user["openIssues"]["totalCount"] + user["closedIssues"]["totalCount"]
         try:
             issues_data = client.rest_get(f"{API_BASE_URL}/search/issues?q=author:{quote(username)}+type:issue")
             total_issues = issues_data.get("total_count", total_issues)
-        except APIError:
-            # If REST API fails, use GraphQL data
-            pass
+        except APIError as e:
+            logger.warning(
+                "Issue search failed, falling back to the owned-repository issue count: %s",
+                e,
+            )
 
         # Fetch additional stats if requested
         discussions_started = 0
@@ -290,13 +309,15 @@ def fetch_user_stats(config: UserStatsFetchConfig) -> UserStats:
 
             try:
                 disc_data = client.graphql_query(discussions_query, {"login": username})
-                disc_user = disc_data.get("data", {}).get("user", {})
+                disc_user = (disc_data.get("data") or {}).get("user") or {}
 
                 discussions_started = disc_user.get("repositoryDiscussions", {}).get("totalCount", 0)
                 discussions_answered = disc_user.get("repositoryDiscussionComments", {}).get("totalCount", 0)
-            except APIError:
-                # If discussions query fails, continue with zeros
-                pass
+            except APIError as e:
+                logger.warning(
+                    "Discussions query failed, discussion counts render as zero: %s",
+                    e,
+                )
 
         return {
             "name": user["name"] or user["login"],
@@ -423,18 +444,31 @@ async def _async_fetch_contribution_years(client: GitHubClient, username: str) -
     Raises:
         FetchError: If API request fails or user not found
     """
+    # Only the transport call belongs in the try: FetchError subclasses APIError,
+    # so a FetchError raised inside would be caught here and wrapped in its own message.
     try:
         data = await client.async_graphql_query(_CONTRIB_YEARS_QUERY, {"login": username})
-        if "errors" in data:
-            raise FetchError(f"GraphQL error: {data['errors'][0].get('message')}")
-
-        user_data = data.get("data", {}).get("user")
-        if not user_data:
-            raise FetchError(f"User '{username}' not found")
-
-        years = user_data["contributionsCollection"]["contributionYears"]
     except APIError as e:
         raise FetchError(f"Failed to fetch contribution years: {e}") from e
+
+    if data.get("errors"):
+        raise FetchError(f"GraphQL error: {first_graphql_error(data)}")
+
+    user_data = (data.get("data") or {}).get("user")
+    if not user_data:
+        raise FetchError(f"User '{username}' not found")
+
+    collection = user_data.get("contributionsCollection")
+    if not collection:
+        # Restricted and SAML-protected accounts return a null collection.
+        # Indexing it raises TypeError, which reaches the user as an opaque
+        # "Unexpected error" rather than the scope problem it actually is.
+        raise FetchError(
+            f"No contribution data available for '{username}'. "
+            "This usually means the token lacks the 'read:user' scope."
+        )
+
+    years = collection.get("contributionYears") or []
 
     return sorted(years, reverse=True)[:5]
 
@@ -470,12 +504,25 @@ async def _async_process_year_contributions(
             {"login": username, "from": from_date, "to": to_date},
         )
 
-        user_data = c_data.get("data", {}).get("user") if isinstance(c_data, dict) and c_data.get("data") else None
+        user_data = (c_data.get("data") or {}).get("user") if isinstance(c_data, dict) else None
         if not user_data:
+            # The usual shape of a field-level GraphQL failure for this year, so
+            # it must warn like the transport failure below rather than return
+            # quietly with the year's contributions missing from the card.
+            logger.warning(
+                "No contribution data returned for %s, its contributions are missing: %s",
+                year,
+                first_graphql_error(c_data),
+            )
             return
 
         collection = user_data.get("contributionsCollection")
         if not collection:
+            logger.warning(
+                "No contributions collection returned for %s, its contributions are missing: %s",
+                year,
+                first_graphql_error(c_data),
+            )
             return
 
         all_contrib_types = [
@@ -549,8 +596,14 @@ async def _async_process_year_contributions(
 
                     raw_repos_map[name][stats_key] += count
 
-    except APIError:
-        # Continue to next year on error
+    except APIError as e:
+        # Continue to the next year, but say so: every contribution made in this
+        # year is now missing from the card.
+        logger.warning(
+            "Contribution fetch failed for %s, its contributions are missing: %s",
+            year,
+            e,
+        )
         return
 
 

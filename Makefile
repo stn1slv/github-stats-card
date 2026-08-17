@@ -1,4 +1,4 @@
-.PHONY: help setup upgrade-deps test format lint build run check clean all
+.PHONY: help setup upgrade-deps test format format-check lint lint-fix type-check build run check clean all
 
 # Default target
 help:
@@ -7,6 +7,7 @@ help:
 	@echo "  upgrade-deps   - Upgrade all dependencies to latest versions"
 	@echo "  test           - Run tests with coverage"
 	@echo "  format         - Format code with ruff"
+	@echo "  format-check   - Check formatting without rewriting (CI gate)"
 	@echo "  lint           - Lint code with ruff"
 	@echo "  build          - Build the application package"
 	@echo "  run            - Run the CLI tool"
@@ -15,33 +16,44 @@ help:
 	@echo "  all            - Run setup and all checks"
 
 # Install dependencies
+# --all-extras is required: pytest, mypy and ruff live in the `dev` extra, so a
+# plain `uv sync` leaves `make lint`, `make type-check` and `make test` unable to run.
 setup:
-	uv sync
+	uv sync --all-extras
 
 # Upgrade dependencies
 upgrade-deps:
 	uv lock --upgrade
-	uv sync
+	uv sync --all-extras
+
+# Every target names the extra explicitly. `uv run` re-syncs the environment,
+# and whether it preserves extras from an earlier `uv sync --all-extras` has
+# varied between uv versions, so relying on that left these targets able to run
+# in an environment with no pytest, mypy or ruff installed.
 
 # Run tests with coverage
 test:
-	uv run pytest --cov=src --cov-report=term-missing
+	uv run --extra dev pytest --cov=src --cov-report=term-missing
 
 # Format code
 format:
-	uv run ruff format src tests
+	uv run --extra dev ruff format src tests
+
+# Check formatting without rewriting (used by CI)
+format-check:
+	uv run --extra dev ruff format --check src tests
 
 # Lint code
 lint:
-	uv run ruff check src tests
+	uv run --extra dev ruff check src tests
 
 # Lint and auto-fix
 lint-fix:
-	uv run ruff check --fix src tests
+	uv run --extra dev ruff check --fix src tests
 
 # Type check
 type-check:
-	uv run mypy src
+	uv run --extra dev mypy src
 
 # Build the package
 build:

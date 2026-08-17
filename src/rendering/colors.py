@@ -119,6 +119,35 @@ def get_card_colors(
     }
 
 
+def resolve_color(color: str | list[str], fallback: str = "#000000") -> str:
+    """
+    Collapse a parsed color to a single CSS color string.
+
+    ``parse_color`` returns a list for a gradient spec ("angle,color1,color2").
+    Only the card background can render a gradient; every other slot (title, text,
+    icon, border, ring) is a single CSS color. Without this collapse the list is
+    interpolated into the SVG as its Python repr, producing invalid CSS such as
+    ``fill: ['90', 'ff0000', '00ff00']``.
+
+    Args:
+        color: A ``#hex`` string, or a gradient list ``[angle, color1, ...]``
+        fallback: Returned when the gradient list carries no color stop
+
+    Returns:
+        A single color string with a ``#`` prefix
+
+    Examples:
+        >>> resolve_color("#2f80ed")
+        '#2f80ed'
+        >>> resolve_color(["90", "ff0000", "00ff00"])
+        '#ff0000'
+    """
+    if isinstance(color, list):
+        stops = color[1:]
+        return f"#{stops[0]}" if stops else fallback
+    return color
+
+
 def format_gradient(colors: list[str]) -> tuple[str, str]:
     """
     Format gradient colors for SVG.

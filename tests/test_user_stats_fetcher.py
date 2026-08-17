@@ -1,11 +1,12 @@
 """Tests for user stats fetcher."""
 
+import logging
 from unittest.mock import patch
 
 import pytest
 
 from src.core.config import UserStatsFetchConfig
-from src.core.exceptions import FetchError
+from src.core.exceptions import APIError, FetchError
 from src.github.fetcher import fetch_user_stats
 
 
@@ -164,3 +165,122 @@ def test_fetch_user_stats_with_discussions(mock_client):
 
     assert stats["discussionsStarted"] == 5
     assert stats["discussionsAnswered"] == 3
+
+
+def test_fetch_user_stats_user_not_found_is_not_double_wrapped(mock_client):
+    """FetchError subclasses APIError, so it must not be caught and re-wrapped by its own handler."""
+    mock_client.graphql_query.return_value = {"data": {"user": None}}
+
+    config = UserStatsFetchConfig(username="ghost", token="fake-token")
+    with pytest.raises(FetchError) as excinfo:
+        fetch_user_stats(config)
+
+    assert str(excinfo.value) == "User 'ghost' not found"
+
+
+def test_fetch_user_stats_warns_when_issue_search_fails(mock_client, caplog):
+    """A silent fallback renders a wrong number; the run must say the count is degraded."""
+    mock_client.graphql_query.return_value = {
+        "data": {
+            "user": {
+                "name": "Test User",
+                "login": "testuser",
+                "contributionsCollection": {
+                    "totalCommitContributions": 100,
+                    "totalPullRequestReviewContributions": 50,
+                },
+                "repositoriesContributedTo": {"totalCount": 10},
+                "pullRequests": {"totalCount": 20},
+                "mergedPullRequests": {"totalCount": 15},
+                "openIssues": {"totalCount": 5},
+                "closedIssues": {"totalCount": 5},
+                "followers": {"totalCount": 100},
+                "repositories": {
+                    "totalCount": 1,
+                    "nodes": [{"stargazers": {"totalCount": 10}}],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+            }
+        }
+    }
+    mock_client.rest_get.side_effect = APIError("rate limited")
+
+    config = UserStatsFetchConfig(username="testuser", token="fake-token")
+    with caplog.at_level(logging.WARNING, logger="src.github.fetcher"):
+        stats = fetch_user_stats(config)
+
+    # Falls back to the GraphQL count rather than failing
+    assert stats["totalIssues"] == 10
+    assert "Issue search failed" in caplog.text
+
+
+def test_fetch_user_stats_commits_year_uses_a_date_bounded_query(mock_client):
+    """--commits-year switches to a second query shape that nothing covered before."""
+    mock_client.graphql_query.return_value = {
+        "data": {
+            "user": {
+                "name": "Test User",
+                "login": "testuser",
+                "contributionsCollection": {
+                    "totalCommitContributions": 42,
+                    "totalPullRequestReviewContributions": 7,
+                },
+                "repositoriesContributedTo": {"totalCount": 3},
+                "pullRequests": {"totalCount": 20},
+                "mergedPullRequests": {"totalCount": 15},
+                "openIssues": {"totalCount": 1},
+                "closedIssues": {"totalCount": 1},
+                "followers": {"totalCount": 9},
+                "repositories": {
+                    "totalCount": 2,
+                    "nodes": [{"stargazers": {"totalCount": 4}}],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+            }
+        }
+    }
+    mock_client.rest_get.return_value = {"total_count": 2}
+
+    config = UserStatsFetchConfig(username="testuser", token="fake-token", commits_year=2023)
+    stats = fetch_user_stats(config)
+
+    query, variables = mock_client.graphql_query.call_args[0]
+    assert "$from: DateTime!" in query
+    assert "$to: DateTime!" in query
+    assert "contributionsCollection(from: $from, to: $to)" in query
+    assert variables["from"] == "2023-01-01T00:00:00Z"
+    assert variables["to"] == "2023-12-31T23:59:59Z"
+    assert stats["totalCommits"] == 42
+
+
+def test_fetch_user_stats_without_commits_year_omits_the_date_range(mock_client):
+    mock_client.graphql_query.return_value = {
+        "data": {
+            "user": {
+                "name": "Test User",
+                "login": "testuser",
+                "contributionsCollection": {
+                    "totalCommitContributions": 42,
+                    "totalPullRequestReviewContributions": 7,
+                },
+                "repositoriesContributedTo": {"totalCount": 3},
+                "pullRequests": {"totalCount": 20},
+                "mergedPullRequests": {"totalCount": 15},
+                "openIssues": {"totalCount": 1},
+                "closedIssues": {"totalCount": 1},
+                "followers": {"totalCount": 9},
+                "repositories": {
+                    "totalCount": 2,
+                    "nodes": [{"stargazers": {"totalCount": 4}}],
+                    "pageInfo": {"hasNextPage": False, "endCursor": None},
+                },
+            }
+        }
+    }
+    mock_client.rest_get.return_value = {"total_count": 2}
+
+    fetch_user_stats(UserStatsFetchConfig(username="testuser", token="fake-token"))
+
+    query, variables = mock_client.graphql_query.call_args[0]
+    assert "$from: DateTime!" not in query
+    assert "from" not in variables

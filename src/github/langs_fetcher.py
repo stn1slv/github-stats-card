@@ -1,12 +1,15 @@
 """GitHub API client for fetching language statistics."""
 
+import logging
 from dataclasses import dataclass
 
 from ..core.config import LangsFetchConfig
 from ..core.constants import DEFAULT_LANG_COLOR
 from ..core.exceptions import APIError, LanguageFetchError
 from ..core.utils import is_repo_excluded
-from .client import GitHubClient
+from .client import GitHubClient, first_graphql_error
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -70,9 +73,8 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
         except APIError as e:
             raise LanguageFetchError(f"Failed to fetch data from GitHub API: {e}") from e
 
-        if "errors" in data:
-            error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
-            raise LanguageFetchError(f"GitHub API error: {error_msg}")
+        if data.get("errors"):
+            raise LanguageFetchError(f"GitHub API error: {first_graphql_error(data)}")
 
         if "data" not in data or not data["data"]:
             raise LanguageFetchError("No data returned from GitHub API")
@@ -90,13 +92,25 @@ def fetch_top_languages(config: LangsFetchConfig) -> dict[str, Language]:
         while page_info.get("hasNextPage"):
             try:
                 page_data = client.graphql_query(query, {"login": username, "after": page_info["endCursor"]})
-                page_user = page_data.get("data", {}).get("user")
+                page_user = (page_data.get("data") or {}).get("user")
                 if not page_user:
+                    # A 200 carrying GraphQL errors and data:null raises no
+                    # APIError, so the handler below never sees it.
+                    logger.warning(
+                        "Repository pagination returned no data, language totals may be incomplete: %s",
+                        first_graphql_error(page_data),
+                    )
                     break
                 page_repos = page_user.get("repositories", {})
                 repos.extend(page_repos.get("nodes", []))
                 page_info = page_repos.get("pageInfo", {})
-            except APIError:
+            except APIError as e:
+                # Continue with what we have, but say so: languages used only in
+                # the repositories on the unread pages are now missing.
+                logger.warning(
+                    "Repository pagination failed, language totals may be incomplete: %s",
+                    e,
+                )
                 break
 
         # Filter out excluded repositories

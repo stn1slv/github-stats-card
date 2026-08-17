@@ -5,7 +5,7 @@ A Python-based GitHub Action and CLI tool that generates beautiful, high-quality
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-GitHub_Action-blue.svg?logo=github&style=flat)](https://github.com/marketplace/actions/github-stats-cards)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-189%20passed-success.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-273%20passed-success.svg)](#testing)
 
 ## 🚀 Get Started (GitHub Action)
 
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Generate GitHub Stats Card
-        uses: stn1slv/github-stats-card@v1.1.9
+        uses: stn1slv/github-stats-cards@v1.2.0
         with:
           card-type: user-stats
           username: ${{ github.repository_owner }}
@@ -109,13 +109,13 @@ Choose from 50+ themes like `default`, `dark`, `radical`, `vue`, `tokyonight`, `
 | `output` | Output SVG file path | **Required** |
 | `theme` | Theme name | `default` |
 | `hide-border`| Hide card border | `false` |
-| `card-width` | Card width in pixels | Varies |
+| `card-width` | Card width in pixels. Widened automatically when the content would not fit | Varies |
 
 ### Card-Specific Inputs
 Detailed configuration options are available for each card type:
-- **User Stats Card:** `show-icons`, `include-all-commits`, `hide`, `show`, `hide-rank`
+- **User Stats Card:** `show-icons`, `include-all-commits`, `hide`, `show`, `hide-rank`, `rank-icon` (`default`, `github`, `percentile`)
   - `show` available values: `repos` (total owned repositories), `reviews`, `prs_merged`, `prs_merged_percentage`, `discussions_started`, `discussions_answered`
-- **Top Languages:** `layout` (normal/compact/donut/pie), `langs-count`, `weighting`, `exclude-repo`
+- **Top Languages:** `layout` (normal/compact/donut/donut-vertical/pie), `langs-count`, `weighting`, `exclude-repo`
 - **Top Contributions:** `limit`, `exclude-repo`, `contrib-types` (default: `commits,prs`)
 
 [**View full configuration guide →**](EXAMPLES.md)
@@ -167,7 +167,7 @@ This tool is compatible with GitHub Enterprise Server. Configure custom API endp
 
 ```yaml
 - name: Generate GitHub Stats Card
-  uses: stn1slv/github-stats-card@v1.1.9
+  uses: stn1slv/github-stats-cards@v1.2.0
   env:
     GITHUB_API_URL: https://github.enterprise.com/api/v3
   with:

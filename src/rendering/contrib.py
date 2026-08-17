@@ -1,10 +1,11 @@
 """Contributor card renderer."""
 
 from ..core.config import ContribCardConfig
+from ..core.constants import MIN_CARD_WIDTH
 from ..core.utils import encode_html
 from ..github.fetcher import ContributorStats
 from .base import render_card
-from .colors import get_card_colors
+from .colors import get_card_colors, resolve_color
 
 
 def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> str:
@@ -26,6 +27,10 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
         border_color=config.border_color,
     )
 
+    # The rank badge is placed relative to the right edge, so a width below the
+    # minimum would drop it on top of the avatar and repo name. Clamp instead.
+    card_width = max(config.card_width, MIN_CARD_WIDTH)
+
     # Calculate height based on number of repos
     # body_y_offset + items * 35 + padding (15)
     body_y_offset = 25 if config.hide_title else 55
@@ -37,7 +42,7 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
     body = []
 
     if num_items == 0:
-        text_color = colors["text_color"]
+        text_color = resolve_color(colors["text_color"])
         body.append(f'<text x="25" y="15" class="stat bold" fill="{text_color}">No contributions found</text>')
     else:
         # Avatar clip path definition (reused)
@@ -66,7 +71,7 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
             else:
                 # Fallback circle
                 body.append(f"""
-                <circle cx="10" cy="17.5" r="10" fill="{colors["icon_color"]}" opacity="0.5" />
+                <circle cx="10" cy="17.5" r="10" fill="{resolve_color(colors["icon_color"])}" opacity="0.5" />
                 """)
 
             # 2. Repo Name (centered vertically: baseline at ~22)
@@ -78,11 +83,12 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
             """)
 
             # 3. Rank Level (right aligned in a circle)
-            right_edge = config.card_width - 75
+            right_edge = card_width - 75
             rank = repo["rank_level"]
 
-            # Use ring color from theme or fallback to title color
-            ring_color = colors.get("ring_color", colors["title_color"])
+            # Use ring color from theme or fallback to title color. `or` rather
+            # than a .get default: a present-but-None value must fall back too.
+            ring_color = resolve_color(colors.get("ring_color") or colors["title_color"])
 
             rank_size = 8 if len(rank) > 1 else 10
 
@@ -99,7 +105,7 @@ def render_contrib_card(stats: ContributorStats, config: ContribCardConfig) -> s
     return render_card(
         title=config.custom_title or "Top Contributions",
         body="\n".join(body),
-        width=config.card_width,
+        width=card_width,
         height=height,
         colors=colors,
         hide_title=config.hide_title,

@@ -49,6 +49,11 @@ inputs:
     description: 'Hide rank circle (user-stats card only)'
     required: false
     default: 'false'
+
+  rank-icon:
+    description: 'Rank circle content: default (letter grade), github (logo above the grade) or percentile - user-stats only'
+    required: false
+    default: 'default'
   
   include-all-commits:
     description: 'Include all commits, not just current year (user-stats card only)'
@@ -154,7 +159,17 @@ runs:
     - name: Checkout action repository
       uses: actions/checkout@v4
       with:
-        repository: stn1slv/github-stats-card
+        # Check out the same repository and ref the caller resolved this action
+        # from. Hardcoding either one is wrong: without `ref` the checkout takes
+        # the default branch, so `uses: ...@v1.1.9` would run whatever is on main
+        # and no release would be reproducible; without `repository` a fork
+        # consumer (`uses: myfork/github-stats-cards@my-tag`) would look for its
+        # own tag in the upstream repository and fail.
+        # Both context values are empty when the action runs from a local path
+        # (`uses: ./`), where checkout then defaults to the caller's own
+        # repository at its current commit, which is what that case wants.
+        repository: ${{ github.action_repository }}
+        ref: ${{ github.action_ref }}
         path: .github-stats-card-action
     
     - name: Set up Python
@@ -189,6 +204,7 @@ runs:
         DISABLE_ANIMATIONS: ${{ inputs.disable-animations }}
         SHOW_ICONS: ${{ inputs.show-icons }}
         HIDE_RANK: ${{ inputs.hide-rank }}
+        RANK_ICON: ${{ inputs.rank-icon }}
         INCLUDE_ALL_COMMITS: ${{ inputs.include-all-commits }}
         SHOW: ${{ inputs.show }}
         LAYOUT: ${{ inputs.layout }}
@@ -233,6 +249,7 @@ runs:
         if [ "$CARD_TYPE" = "user-stats" ] || [ "$CARD_TYPE" = "stats" ]; then
           [ "$SHOW_ICONS" = "true" ] && ARGS+=(--show-icons)
           [ "$HIDE_RANK" = "true" ] && ARGS+=(--hide-rank)
+          [ -n "$RANK_ICON" ] && ARGS+=(--rank-icon "$RANK_ICON")
           [ "$INCLUDE_ALL_COMMITS" = "true" ] && ARGS+=(--include-all-commits)
           [ -n "$SHOW" ] && ARGS+=(--show "$SHOW")
           [ -n "$HIDE" ] && ARGS+=(--hide "$HIDE")

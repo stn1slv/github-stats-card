@@ -12,9 +12,10 @@ from ..core.constants import (
     FONT_WEIGHT_RANK,
     FONT_WEIGHT_STAT,
     FONT_WEIGHT_STAT_BOLD,
+    RANK_CIRCLE_STROKE_WIDTH,
 )
 from ..core.utils import encode_html
-from .colors import format_gradient
+from .colors import format_gradient, resolve_color
 
 
 def render_card(
@@ -51,11 +52,13 @@ def render_card(
     """
     colors = colors or {}
 
-    title_color = colors.get("title_color", "#2f80ed")
-    text_color = colors.get("text_color", "#434d58")
+    # Only the background can render a gradient; the rest must collapse to a
+    # single CSS color, or a gradient list leaks into the SVG as a Python repr.
+    title_color = resolve_color(colors.get("title_color", "#2f80ed"))
+    text_color = resolve_color(colors.get("text_color", "#434d58"))
     bg_color = colors.get("bg_color", "#fffefe")
-    border_color = colors.get("border_color", "#e4e2e2")
-    icon_color = colors.get("icon_color", "#4c71f2")
+    border_color = resolve_color(colors.get("border_color", "#e4e2e2"))
+    icon_color = resolve_color(colors.get("icon_color", "#4c71f2"))
 
     # Handle gradient background
     gradient_def = ""
@@ -96,12 +99,7 @@ def render_card(
         rank_text_animation = f"animation: scaleInAnimation {ANIMATION_SCALE_DURATION_MS / 1000}s ease-in-out forwards;"
 
     # Get ring color for rank circle CSS
-    ring_color_val = colors.get("ring_color") or title_color
-    ring_color = f"#{ring_color_val[1]}" if isinstance(ring_color_val, list) else str(ring_color_val)
-
-    # Ensure ring color has # prefix if it's a hex
-    if len(ring_color) in [3, 6, 8] and not ring_color.startswith("#"):
-        ring_color = f"#{ring_color}"
+    ring_color = resolve_color(colors.get("ring_color") or title_color)
 
     css = f"""
     <style>
@@ -131,14 +129,14 @@ def render_card(
       .rank-circle-rim {{
         stroke: {ring_color};
         fill: none;
-        stroke-width: 6;
+        stroke-width: {RANK_CIRCLE_STROKE_WIDTH};
         opacity: 0.2;
       }}
       .rank-circle {{
         stroke: {ring_color};
         stroke-dasharray: 250;
         fill: none;
-        stroke-width: 6;
+        stroke-width: {RANK_CIRCLE_STROKE_WIDTH};
         stroke-linecap: round;
         opacity: 0.8;
         transform-origin: -10px 8px;

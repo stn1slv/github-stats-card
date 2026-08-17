@@ -23,7 +23,7 @@ The project uses `uv` for all lifecycle tasks.
 
 *   **Install Dependencies:**
     ```bash
-    uv sync
+    make setup   # uv sync --all-extras; the dev tooling lives in the `dev` extra
     ```
 
 *   **Run the CLI (Development):**
@@ -40,19 +40,22 @@ The project uses `uv` for all lifecycle tasks.
 
 *   **Run Tests:**
     ```bash
-    uv run pytest
+    make test
     ```
 
 *   **Linting & Formatting:**
     ```bash
-    uv run ruff check src tests
-    uv run ruff format src tests
+    make lint          # ruff check
+    make format        # ruff format (rewrites files)
+    make format-check  # ruff format --check, the CI gate
     ```
 
 *   **Type Checking:**
     ```bash
-    uv run mypy src
+    make type-check
     ```
+
+> Prefer the `make` targets over bare `uv run`: each target passes `--extra dev` explicitly, because whether `uv run` preserves extras from an earlier sync has varied between uv versions.
 
 **Development Conventions**
 
@@ -143,7 +146,29 @@ The project uses `uv` for all lifecycle tasks.
 - **Rationale:** The Actions default `GITHUB_TOKEN` cannot read cross-repository contribution breakdowns, so the card silently renders empty. Without the hint the failure looks like "the user has no contributions" rather than a scope problem, which was the single most common source of confusion.
 - **Gotcha:** The hint is keyed off the `ghs_` prefix, so it never fires for a PAT. It writes to stderr so the SVG on stdout stays clean. Surfaced by `/speckit-converge` as unrequested code (T029) and justified here rather than removed.
 
+### `resolve_color` is the only place a gradient collapses (2026-08-16)
+- **Decision:** `parse_color` returns a `list` for a gradient spec, and only the card background renders it as a real `<linearGradient>`. Every other colour slot (title, text, icon, border, ring) must pass through `rendering.colors.resolve_color`, which returns the first colour stop with a `#` prefix.
+- **Rationale:** `base.py` and `langs.py` had each grown their own inline `isinstance(..., list)` collapse and had already drifted apart: one added the `#`, the other did not. Every slot that had neither interpolated the list into the SVG as its Python repr (`fill: ['90', 'ff0000', '00ff00']`), which is invalid CSS that silently falls back to the browser default.
+- **Gotcha:** Never interpolate a value straight out of `get_card_colors` into markup. It is typed `str | list[str]`, and `mypy` will not catch the list case because f-strings accept anything. `bg_color` is the single exception and is handled by `format_gradient`.
+
+### Card width floors are measured, never hardcoded (2026-08-16)
+- **Decision:** `--card-width` is a request, not a guarantee. `render_user_stats_card` and `render_top_languages` compute the narrowest width the content actually needs using `core.utils.measure_text`, then clamp up to it.
+- **Rationale:** Stat values, the rank circle and the two-column legends sit at fixed offsets, so a narrow card printed content off the canvas or on top of the ring. A single constant cannot work: a short-format `6.6k` needs ~270px of value column while a long-format `12,345,678` needs ~330px, so any fixed floor is either too aggressive for the common case or too small for the long one. Two successive fixed floors (420, then 340) were both measured wrong before this approach.
+- **Gotcha:** Use `math.ceil` on the derived floor, never `int()`. Both call sites later floor when halving the body into columns, so truncating gives back the fraction of a pixel the content needed and reintroduces the overlap.
+- **Limit:** `measure_text` is `len(text) * font_size * 0.6`, a monospace approximation of proportional bold Segoe UI. The floors and the tests both use it, so the tests prove the renderer agrees with the estimate, not that a browser will never overlap. Wide glyphs, bold digits and non-Latin scripts can still exceed it, and only the value column is measured, not the labels. Treat it as protection against the common cases, not a guarantee.
+
+### Fetch degradation logs, it never returns silently (2026-08-16)
+- **Decision:** Fetchers that continue with partial data (pagination cut short, a search fallback, a dropped contribution year) emit `logger.warning` with the cause interpolated into the message. `cli._configure_logging` attaches a stderr handler to the package logger.
+- **Rationale:** These paths previously swallowed `APIError` and rendered a plausible card with wrong numbers, which is worse than failing because the SVG gets committed to a README.
+- **Gotcha:** Three traps here, all of which were live at some point. (1) Put the cause in the *message*; the formatter does not render `extra=` fields, so context passed only that way is invisible. (2) Derive the logger name from `__package__`, not `__name__` — under `python -m src.cli` the module's `__name__` is `"__main__"` and the handler lands on a logger no fetcher writes to. (3) Do not use `logging.basicConfig`: it is a no-op once the root logger has a handler, and raising the root level turns on `httpx` debug output.
+
+### `action.yml` checks out the caller's own ref (2026-08-16)
+- **Decision:** The self-checkout step uses `repository: ${{ github.action_repository }}` and `ref: ${{ github.action_ref }}`. Neither is hardcoded.
+- **Rationale:** Without `ref` the checkout takes the default branch, so `uses: ...@v1.1.9` ran whatever was on `main` and no release was reproducible. Without `repository` a fork consumer looks for its own tag in the upstream repository and fails.
+- **Gotcha:** Both context values are empty for a local `uses: ./`, where `actions/checkout` then defaults to the caller's repository at its current commit — that is the wanted behaviour, so do not add a fallback. They are also unreliable when this action is invoked from inside another composite action. `test_action_yml_checks_out_the_ref_the_caller_pinned` asserts both, and that no hardcoded repository name remains.
+
 ## Recent Changes
+- [Review Remediation] (2026-08-16): Fixed action release pinning, gradient colour leaks, `k_formatter` precision, card width overlap, silent fetch degradation, and exception self-wrapping; implemented `--rank-icon` and a real `donut-vertical` layout; added CI, `--debug`, input validation and `CHANGELOG.md`. Tests 201 -> 264.
 - [Token Scope Warning] (2026-08-09): Documented the existing `contrib` empty-result PAT hint as an intentional decision; hardened `action.yml` to pass `contrib-types` via `env` instead of direct interpolation. [Source: specs/003-filter-contrib-types Phase 6]
 - [Partial GraphQL Error Resilience] (2026-07-24): Fixed `contrib` card fetching to process valid partial GraphQL data when top-level `errors` are present; bumped version to 1.1.9. [PR #14]
 - [Contribution Filtering] (2026-03-22): Added `--types` flag to `contrib` card; default to `commits,prs`; implemented PR state filtering (OPEN/MERGED). [Source: specs/003-filter-contrib-types]

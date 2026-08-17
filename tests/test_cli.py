@@ -1,9 +1,12 @@
 """Integration tests for CLI commands."""
 
+import io
+import logging
 import re
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from src.cli import cli
@@ -196,6 +199,21 @@ def test_action_yml_forwards_a_flag_the_contrib_command_accepts():
     assert not [ln for ln in executable if re.search(r"\beval\b", ln)]
 
 
+def test_action_yml_checks_out_the_ref_the_caller_pinned():
+    """A consumer pinning @v1.2.3 must run that tag's code, not whatever is on the default branch."""
+    action = ACTION_YML.read_text()
+
+    # The checkout of the action's own repository must carry an explicit ref.
+    # Without one, actions/checkout silently takes the default branch, so every
+    # released tag would run main and no release would be reproducible.
+    checkout_step = action.split("- name: Checkout action repository", 1)[1].split("- name:", 1)[0]
+    # Both must come from context. A hardcoded repository breaks fork consumers,
+    # who would look for their own tag in the upstream repository.
+    assert "repository: ${{ github.action_repository }}" in checkout_step
+    assert "ref: ${{ github.action_ref }}" in checkout_step
+    assert not re.search(r"repository: stn1slv/", checkout_step)
+
+
 def test_contrib_command_with_invalid_types():
     runner = CliRunner()
     result = runner.invoke(
@@ -212,3 +230,218 @@ def test_contrib_command_with_empty_types():
 
     assert result.exit_code != 0
     assert "At least one contribution type is required" in result.stderr
+
+
+def test_user_stats_rejects_all_commits_combined_with_a_year():
+    """--include-all-commits would overwrite the year-filtered count, discarding --commits-year."""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--include-all-commits", "--commits-year", "2023"],
+    )
+
+    assert result.exit_code != 0
+    assert "cannot be combined" in result.stderr
+
+
+def test_user_stats_rejects_out_of_range_number_precision():
+    """Documented as 0-2; an out-of-range value used to be ignored in silence."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--number-precision", "5"])
+
+    assert result.exit_code != 0
+    assert "--number-precision" in result.stderr
+
+
+def test_contrib_rejects_a_non_positive_limit():
+    """--limit feeds a list slice, so 0 empties the card and -1 drops the last repository."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["contrib", "-u", "user", "-t", "token", "-o", "c.svg", "--limit", "0"])
+
+    assert result.exit_code != 0
+    assert "--limit" in result.stderr
+
+
+def test_top_langs_rejects_an_out_of_range_weight():
+    """The weight is an exponent, so a large value overflows during scoring."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["top-langs", "-u", "user", "-t", "token", "-o", "l.svg", "--size-weight", "100"])
+
+    assert result.exit_code != 0
+    assert "--size-weight" in result.stderr
+
+
+def test_debug_flag_reraises_instead_of_collapsing_to_one_line():
+    """Without --debug a genuine bug is indistinguishable from a network problem."""
+    runner = CliRunner()
+    with patch("src.cli.fetch_user_stats") as mock_fetch:
+        mock_fetch.side_effect = KeyError("totalStars")
+
+        plain = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg"])
+        assert plain.exit_code == 1
+        assert "Unexpected error" in plain.stderr
+
+        debugged = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--debug"])
+        assert isinstance(debugged.exception, KeyError)
+
+
+def test_user_stats_rejects_an_unsupported_locale():
+    """Only locales with translations may be accepted; unknown ones used to fall back in silence."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["user-stats", "-u", "user", "-t", "token", "-o", "s.svg", "--locale", "fr"])
+
+    assert result.exit_code != 0
+    assert "--locale" in result.stderr
+
+
+@pytest.fixture
+def restore_logging():
+    """Snapshot and restore global logging state.
+
+    _configure_logging mutates a package logger that outlives the test, and the
+    root-logger test below mutates the root. Without this the next
+    logging-sensitive test inherits a level and a handler bound to a torn-down
+    capsys stream.
+    """
+    root = logging.getLogger()
+    package = logging.getLogger("src")
+    saved = [(lg, lg.level, list(lg.handlers), lg.propagate) for lg in (root, package)]
+    try:
+        yield
+    finally:
+        for lg, level, handlers, propagate in saved:
+            lg.setLevel(level)
+            lg.handlers[:] = handlers
+            lg.propagate = propagate
+
+
+def test_configure_logging_makes_the_fetch_warning_cause_visible_on_stderr(capsys, restore_logging):
+    """A warning that names no cause is as useless as the silent fallback it replaced."""
+    from src.cli import _configure_logging
+
+    _configure_logging(debug=False)
+    logging.getLogger("src.github.fetcher").warning(
+        "Issue search failed, falling back to the owned-repository issue count: %s",
+        "429 Too Many Requests",
+        extra={"username": "octocat"},
+    )
+
+    stderr = capsys.readouterr().err
+    assert "Issue search failed" in stderr
+    assert "429 Too Many Requests" in stderr
+
+
+def test_configure_logging_is_idempotent_and_survives_a_configured_root(capsys, restore_logging):
+    """A host with its own root handler must not silence us or double our output.
+
+    `logging.basicConfig` cannot set this scenario up: pytest's logging plugin
+    has already attached a root handler, so basicConfig returns early and the
+    previous version of this test simulated nothing at all.
+    """
+    from src.cli import _configure_logging
+
+    root = logging.getLogger()
+    host_stream = io.StringIO()
+    host_handler = logging.StreamHandler(host_stream)
+    root.addHandler(host_handler)
+    root.setLevel(logging.DEBUG)
+
+    _configure_logging(debug=False)
+    _configure_logging(debug=True)
+
+    logging.getLogger("src.github.fetcher").debug("debug diagnostic")
+
+    stderr = capsys.readouterr().err
+    # --debug took effect despite the pre-configured root...
+    assert stderr.count("debug diagnostic") == 1, "expected exactly one line on stderr"
+    # ...and the host's root handler did not also receive it, so no duplication
+    assert host_stream.getvalue() == ""
+
+
+def test_configure_logging_keeps_a_level_the_host_chose(restore_logging):
+    """An embedding host that asked for DEBUG must not be reset to WARNING."""
+    from src.cli import _PACKAGE_LOGGER_NAME, _configure_logging
+
+    logging.getLogger(_PACKAGE_LOGGER_NAME).setLevel(logging.DEBUG)
+    _configure_logging(debug=False)
+
+    assert logging.getLogger(_PACKAGE_LOGGER_NAME).level == logging.DEBUG
+
+
+def test_configure_logging_preserves_a_handler_the_host_attached(restore_logging):
+    """Only this module's own handler may be replaced on repeated invocations."""
+    from src.cli import _OWN_HANDLER_FLAG, _PACKAGE_LOGGER_NAME, _configure_logging
+
+    package_logger = logging.getLogger(_PACKAGE_LOGGER_NAME)
+    host_handler = logging.StreamHandler(io.StringIO())
+    package_logger.addHandler(host_handler)
+
+    _configure_logging(debug=False)
+    _configure_logging(debug=False)
+
+    assert host_handler in package_logger.handlers
+    # Ours is present exactly once, not stacked. Counted by the sentinel rather
+    # than "everything that is not the host handler", because pytest's caplog
+    # attaches its own capture handlers to this same logger.
+    ours = [h for h in package_logger.handlers if getattr(h, _OWN_HANDLER_FLAG, False)]
+    assert len(ours) == 1
+
+
+def test_action_yml_declares_every_input_the_readme_advertises():
+    """A README-only input reaches consumers as 'Unexpected input(s)'."""
+    action = ACTION_YML.read_text()
+    readme = (ACTION_YML.parent / "README.md").read_text()
+
+    section = readme.split("### Card-Specific Inputs")[1].split("---")[0]
+    # Only the top-level card bullets name inputs. Indented sub-bullets list
+    # allowed *values* of an input, and so do parenthesised groups, so both are
+    # dropped before extracting names.
+    advertised: set[str] = set()
+    for line in section.splitlines():
+        if not line.startswith("- **"):
+            continue
+        without_values = re.sub(r"\([^)]*\)", "", line)
+        advertised |= set(re.findall(r"`([a-z][a-z0-9-]*)`", without_values))
+
+    declared = set(re.findall(r"^  ([a-z][a-z0-9-]+):$", action, re.MULTILINE))
+
+    assert advertised, "no inputs parsed from the README; the section format changed"
+    missing = advertised - declared
+    assert not missing, f"README advertises action inputs that action.yml does not declare: {sorted(missing)}"
+
+
+def test_action_yml_forwards_rank_icon():
+    """--rank-icon is implemented in the CLI; the action must be able to reach it."""
+    action = ACTION_YML.read_text()
+
+    assert "rank-icon:" in action
+    assert "RANK_ICON: ${{ inputs.rank-icon }}" in action
+    assert 'ARGS+=(--rank-icon "$RANK_ICON")' in action
+    assert "--rank-icon" in {opt for param in cli.commands["user-stats"].params for opt in param.opts}
+
+
+def test_user_stats_rejects_a_card_width_below_the_minimum():
+    """0 used to be read as 'unset' and silently replaced by the default."""
+    runner = CliRunner()
+    result = runner.invoke(cli, ["user-stats", "-u", "u", "-t", "t", "-o", "s.svg", "--card-width", "0"])
+
+    assert result.exit_code != 0
+    assert "--card-width" in result.stderr
+
+
+def test_package_logger_name_survives_being_run_as_a_module():
+    """Under `python -m src.cli` this module's __name__ is "__main__".
+
+    Deriving the logger name from __name__ would attach the handler to a logger
+    no fetcher ever writes to, silently disabling both the warnings and --debug.
+    """
+    import src.cli as cli_module
+    from src.github import fetcher
+
+    # The name must come from the package, not the module
+    expected = cli_module.__package__.split(".", 1)[0]
+    assert expected == cli_module._PACKAGE_LOGGER_NAME
+    assert cli_module._PACKAGE_LOGGER_NAME != "__main__"
+
+    # And it must actually be an ancestor of the loggers the fetchers use
+    assert fetcher.logger.name.startswith(f"{cli_module._PACKAGE_LOGGER_NAME}.")
