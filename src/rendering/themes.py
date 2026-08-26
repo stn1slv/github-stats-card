@@ -107,6 +107,13 @@ THEMES: dict[str, ThemeColors] = {
         "text_color": "fffefe",
         "bg_color": "273849",
     },
+    "vue-github-dark": {
+        "title_color": "41b883",
+        "icon_color": "41b883",
+        "text_color": "fffefe",
+        "bg_color": "0d1117",
+        "border_color": "0d1117",
+    },
     "shades-of-purple": {
         "title_color": "fad000",
         "icon_color": "b362ff",

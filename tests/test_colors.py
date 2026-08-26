@@ -86,6 +86,16 @@ def test_get_card_colors_theme():
     assert colors["bg_color"] == "#141321"
 
 
+def test_get_card_colors_vue_github_dark_theme():
+    colors = get_card_colors(theme="vue-github-dark")
+    assert colors["title_color"] == "#41b883"
+    assert colors["text_color"] == "#fffefe"
+    assert colors["bg_color"] == "#0d1117"
+    # The border must not fall back to the default light grey, or the card is
+    # outlined against the GitHub dark canvas it is meant to blend into.
+    assert colors["border_color"] == "#0d1117"
+
+
 def test_get_card_colors_custom_overrides():
     colors = get_card_colors(title_color="ff0000", text_color="00ff00")
     assert colors["title_color"] == "#ff0000"

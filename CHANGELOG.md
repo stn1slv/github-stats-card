@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-08-26
+
+### Added
+
+- `vue-github-dark` theme: the `vue-dark` palette on GitHub's dark-mode canvas (`#0d1117`), with a matching border so the card has no visible edge and blends into a README viewed in dark mode. It is a fixed dark background, so it will show as a dark rectangle to anyone browsing in light mode.
+
 ## [1.2.1] - 2026-08-17
 
 ### Fixed
