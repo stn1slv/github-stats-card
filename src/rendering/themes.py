@@ -111,8 +111,10 @@ THEMES: dict[str, ThemeColors] = {
         "title_color": "41b883",
         "icon_color": "41b883",
         "text_color": "fffefe",
-        "bg_color": "0d1117",
-        "border_color": "0d1117",
+        # Alpha 00: the card must blend into every dark GitHub surface (web
+        # dark, dark dimmed, mobile app), which use different background hexes.
+        "bg_color": "0d111700",
+        "border_color": "0d111700",
     },
     "shades-of-purple": {
         "title_color": "fad000",
