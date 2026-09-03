@@ -70,6 +70,16 @@ def test_render_user_stats_card_custom_theme(sample_stats):
     assert "#fe428e" in svg  # title_color from radical theme
 
 
+def test_render_user_stats_card_vue_github_dark_transparent_background(sample_stats):
+    config = UserStatsCardConfig(theme="vue-github-dark")
+    svg = render_user_stats_card(sample_stats, config)
+    # bg_color is the one colour that bypasses resolve_color, so asserting on
+    # get_card_colors alone would not catch a regression that collapses or
+    # sanitizes the alpha-00 value before it reaches the background rect.
+    assert 'fill="#0d111700"' in svg
+    assert 'stroke="#0d111700"' in svg
+
+
 def test_render_user_stats_card_hide_rank(sample_stats):
     config = UserStatsCardConfig(hide_rank=True)
     svg = render_user_stats_card(sample_stats, config)

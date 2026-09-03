@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Generate GitHub Stats Card
-        uses: stn1slv/github-stats-cards@v1.3.0
+        uses: stn1slv/github-stats-cards@v1.3.1
         with:
           card-type: user-stats
           username: ${{ github.repository_owner }}
@@ -93,6 +93,8 @@ Use the `<picture>` tag to support both **Dark** and **Light** modes automatical
 ## 🎨 Available Themes
 
 Choose from 50+ themes like `default`, `dark`, `radical`, `vue`, `tokyonight`, `dracula`, `monokai`, and more.
+
+> **Note:** `vue-github-dark` has a fully transparent background so the card blends into any dark GitHub surface (web dark mode, dark dimmed, the mobile app). Its near-white text is hard to read in light mode, so embed it for dark-mode viewers only, for example with a `<picture>` element and `prefers-color-scheme`.
 
 [**View all themes →**](src/rendering/themes.py)
 
@@ -167,7 +169,7 @@ This tool is compatible with GitHub Enterprise Server. Configure custom API endp
 
 ```yaml
 - name: Generate GitHub Stats Card
-  uses: stn1slv/github-stats-cards@v1.3.0
+  uses: stn1slv/github-stats-cards@v1.3.1
   env:
     GITHUB_API_URL: https://github.enterprise.com/api/v3
   with:

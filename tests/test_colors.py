@@ -90,10 +90,12 @@ def test_get_card_colors_vue_github_dark_theme():
     colors = get_card_colors(theme="vue-github-dark")
     assert colors["title_color"] == "#41b883"
     assert colors["text_color"] == "#fffefe"
-    assert colors["bg_color"] == "#0d1117"
-    # The border must not fall back to the default light grey, or the card is
-    # outlined against the GitHub dark canvas it is meant to blend into.
-    assert colors["border_color"] == "#0d1117"
+    # Background and border are fully transparent (alpha 00) so the card takes
+    # on whichever dark canvas renders it: GitHub web dark (#0d1117), dark
+    # dimmed, or the mobile app. An opaque border would outline the card on
+    # any background that is not exactly #0d1117.
+    assert colors["bg_color"] == "#0d111700"
+    assert colors["border_color"] == "#0d111700"
 
 
 def test_get_card_colors_custom_overrides():
