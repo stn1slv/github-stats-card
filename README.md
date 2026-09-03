@@ -94,6 +94,8 @@ Use the `<picture>` tag to support both **Dark** and **Light** modes automatical
 
 Choose from 50+ themes like `default`, `dark`, `radical`, `vue`, `tokyonight`, `dracula`, `monokai`, and more.
 
+> **Note:** `vue-github-dark` has a fully transparent background so the card blends into any dark GitHub surface (web dark mode, dark dimmed, the mobile app). Its near-white text is hard to read in light mode, so embed it for dark-mode viewers only, for example with a `<picture>` element and `prefers-color-scheme`.
+
 [**View all themes →**](src/rendering/themes.py)
 
 ---
