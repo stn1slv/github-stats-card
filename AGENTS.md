@@ -99,17 +99,18 @@ The project uses `uv` for all lifecycle tasks.
 ### Contributor fetching uses `contributionsCollection` (2026-02-08)
 - **Decision:** `fetch_contributor_stats` sources contributed repositories from `contributionsCollection` (per-year `*ContributionsByRepository` fields), sorting and slicing by stars in Python.
 - **Rationale:** `contributionsCollection` exposes the per-type breakdown (commits, PRs, issues, reviews) that the `--types` filter and repo ranking both depend on.
-- **Gotcha:** `specs/001-contributor-card/research.md` proposes `repositoriesContributedTo(...)` instead. That research decision was superseded during implementation and never updated. Do not "fix" the fetcher to match it: `repositoriesContributedTo` returns no contribution-type breakdown, which would break `--types` and the repo rank modifier.
+- **Gotcha:** `specs/001-contributor-card/research.md` proposes `repositoriesContributedTo(...)` instead. That research decision was superseded during implementation and never updated. Do not "fix" the fetcher to match it: `repositoriesContributedTo` returns no contribution-type breakdown, which would break `--types`.
 
 ### SVG Image Embedding (2026-02-08)
 - **Decision:** External images (avatars) are Base64 encoded and embedded as data URIs. Circular masking is achieved using SVG `<clipPath>`.
 - **Rationale:** Ensures self-contained SVGs that work in restricted environments (like GitHub READMEs) without external dependencies or tracking.
 - **Gotcha:** Use a shared `<clipPath>` definition in `<defs>` and refer to it by ID (`url(#avatar-clip)`) to minimize SVG size.
 
-### Project Magnitude Ranking (2026-02-20)
-- **Decision:** Use **Repository Total Commits** as a proxy for "Project Magnitude" to modify repository ranks (+/-) in the contributor card.
-- **Rationale:** Distinguishes between contributions to massive, established projects vs. small/new projects, even if star counts are similar.
-- **Gotcha:** Fetch total commits via the `object(expression: "HEAD") { history { totalCount } }` fragment in GraphQL. Ensure this is fetched for all contribution types (Commits, PRs, Issues, Reviews) to avoid missing magnitude data when a user hasn't made direct commits.
+### Repository rank is stars only (2026-09-05, supersedes Project Magnitude Ranking 2026-02-20)
+- **Decision:** `calculate_repo_rank` takes a single argument, `stars`, and returns one of `S`, `A`, `B`, `C`, `D`. The `+`/`-` magnitude modifiers are gone, and with them the whole commit-count pipeline: the `object(expression: "HEAD") { history { totalCount } }` GraphQL fragment, the `total_repo_commits` key in `raw_repos_map`, and the branch that back-filled that key when a later contribution year carried the count the first one lacked.
+- **Rationale:** The modifier was the only consumer of the commit count, so one character of output was paying for a per-repo GraphQL field plus a merge path through the year loop. The earlier decision was right that magnitude separates a large framework from a same-sized star count on a curated list, but the ranking was judged not worth that machinery.
+- **Gotcha:** Do not confuse this with `calculate_user_rank` in the same module, which is untouched: it returns a `RankResult` dict whose `level` is still one of `S`/`A+`/`A`/`A-`/... for the user stats card. There is no `calculate_rank`; it was renamed on 2026-02-20. Only the contributor card's per-repo rank lost its modifiers. Ranks are now always one character, so `src/rendering/contrib.py` hardcodes `font-size: 10px` for the rank badge; a future multi-character rank has to bring the scaling back.
+- **Gotcha:** `specs/002-rework-ranking/` still documents the modifiers as current behaviour (`spec.md` FR-003, the `S+` and `C-` worked examples in `quickstart.md`, the two-argument signature in `research.md` and `data-model.md`). Like `specs/001-contributor-card/research.md`, it is a frozen record of what was built then, not a description of the code now. Do not "fix" `rank.py` to match it.
 
 ### Contribution Filtering (2026-03-22)
 - **Decision:** Allow users to filter contributor card content by type (`commits`, `prs`, `issues`, `reviews`) via `--types` flag. Default to `commits,prs`.
@@ -168,6 +169,7 @@ The project uses `uv` for all lifecycle tasks.
 - **Gotcha:** Both context values are empty for a local `uses: ./`, where `actions/checkout` then defaults to the caller's repository at its current commit — that is the wanted behaviour, so do not add a fallback. They are also unreliable when this action is invoked from inside another composite action. `test_action_yml_checks_out_the_ref_the_caller_pinned` asserts both, and that no hardcoded repository name remains.
 
 ## Recent Changes
+- [Repository Rank Simplification] (2026-09-05): Dropped the `+`/`-` magnitude modifiers from the contributor card rank. `calculate_repo_rank` is now stars only, and the commit-count fetch pipeline it fed was removed. Tests 275 -> 266.
 - [Review Remediation] (2026-08-16): Fixed action release pinning, gradient colour leaks, `k_formatter` precision, card width overlap, silent fetch degradation, and exception self-wrapping; implemented `--rank-icon` and a real `donut-vertical` layout; added CI, `--debug`, input validation and `CHANGELOG.md`. Tests 201 -> 264.
 - [Token Scope Warning] (2026-08-09): Documented the existing `contrib` empty-result PAT hint as an intentional decision; hardened `action.yml` to pass `contrib-types` via `env` instead of direct interpolation. [Source: specs/003-filter-contrib-types Phase 6]
 - [Partial GraphQL Error Resilience] (2026-07-24): Fixed `contrib` card fetching to process valid partial GraphQL data when top-level `errors` are present; bumped version to 1.1.9. [PR #14]

@@ -38,10 +38,6 @@ def setup_mock_response(mock_client, repos_data):
             "owner": repo["owner"],
         }
 
-        # Add total commit count if provided
-        if "total_repo_commits" in repo:
-            repo_node["object"] = {"history": {"totalCount": repo["total_repo_commits"]}}
-
         commit_contribs.append(
             {
                 "repository": repo_node,
@@ -74,7 +70,6 @@ def test_fetch_contributor_stats_success(mock_client):
             "stargazers": {"totalCount": 100},
             "owner": {"avatarUrl": "http://avatar1", "login": "owner"},
             "commits": 10,
-            "total_repo_commits": 200,  # Neutral modifier
         },
         {
             "nameWithOwner": "owner/repo2",
@@ -82,7 +77,6 @@ def test_fetch_contributor_stats_success(mock_client):
             "stargazers": {"totalCount": 50},
             "owner": {"avatarUrl": "http://avatar2", "login": "owner"},
             "commits": 5,
-            "total_repo_commits": 20,  # Low modifier (-)
         },
     ]
     setup_mock_response(mock_client, repos)
@@ -94,14 +88,14 @@ def test_fetch_contributor_stats_success(mock_client):
     assert stats["repos"][0]["name"] == "owner/repo1"
     assert stats["repos"][0]["stars"] == 100
     assert stats["repos"][0]["commits"] == 10
-    # Stars=100 -> C. RepoCommits=200 (Neutral) -> "C"
+    # Stars=100 -> C
     assert stats["repos"][0]["rank_level"] == "C"
 
     assert stats["repos"][1]["name"] == "owner/repo2"
     assert stats["repos"][1]["stars"] == 50
     assert stats["repos"][1]["commits"] == 5
-    # Stars=50 -> C. RepoCommits=20 (<100) -> "C-"
-    assert stats["repos"][1]["rank_level"] == "C-"
+    # Stars=50 -> C
+    assert stats["repos"][1]["rank_level"] == "C"
 
 
 def test_fetch_contributor_stats_sorting(mock_client):
@@ -297,26 +291,24 @@ def test_fetch_contributor_stats_deduplication(mock_client):
 
 
 def test_fetch_contributor_stats_rank_calculation(mock_client):
-    """Test rank calculation with repo magnitude (total commits)."""
+    """Test that the repository rank is derived from the star count."""
     # 1. Years response (2 years)
     years_response = {"data": {"user": {"contributionsCollection": {"contributionYears": [2024]}}}}
 
-    # Repo S: S tier stars (>10k), >5000 repo commits -> S+
+    # Repo S: S tier stars (>10k)
     repo_s = {
         "nameWithOwner": "owner/repo-s",
         "isPrivate": False,
         "stargazers": {"totalCount": 10001},
         "owner": {"avatarUrl": "url", "login": "owner"},
-        "object": {"history": {"totalCount": 6000}},
     }
 
-    # Repo A: A tier stars (>1k), <100 repo commits -> A-
+    # Repo A: A tier stars (>1k)
     repo_a = {
         "nameWithOwner": "owner/repo-a",
         "isPrivate": False,
         "stargazers": {"totalCount": 1001},
         "owner": {"avatarUrl": "url", "login": "owner"},
-        "object": {"history": {"totalCount": 50}},
     }
 
     # 2. 2024 response
@@ -345,11 +337,11 @@ def test_fetch_contributor_stats_rank_calculation(mock_client):
 
     # Check Repo S
     s_repo = next(r for r in stats["repos"] if r["name"] == "owner/repo-s")
-    assert s_repo["rank_level"] == "S+"  # 10001 Stars, 6000 commits
+    assert s_repo["rank_level"] == "S"  # 10001 stars
 
     # Check Repo A
     a_repo = next(r for r in stats["repos"] if r["name"] == "owner/repo-a")
-    assert a_repo["rank_level"] == "A-"  # 1001 Stars, 50 commits
+    assert a_repo["rank_level"] == "A"  # 1001 stars
 
 
 @pytest.mark.anyio
@@ -405,7 +397,6 @@ def test_fetch_contributor_stats_pr_filtering(mock_client):
         "isPrivate": False,
         "stargazers": {"totalCount": 100},
         "owner": {"avatarUrl": "url", "login": "owner"},
-        "object": {"history": {"totalCount": 100}},
     }
 
     contribs_response = {
@@ -490,14 +481,12 @@ def test_fetch_contributor_stats_pr_state_filter_on_partial_payload(mock_client)
         "isPrivate": False,
         "stargazers": {"totalCount": 100},
         "owner": {"avatarUrl": "url", "login": "owner"},
-        "object": {"history": {"totalCount": 100}},
     }
     broken_repo_node = {
         "nameWithOwner": "owner/unresolvable",
         "isPrivate": False,
         "stargazers": {"totalCount": 10},
         "owner": {"avatarUrl": "url", "login": "owner"},
-        "object": None,
     }
 
     # 2. Field-level errors alongside data whose PR nodes are partly unresolvable

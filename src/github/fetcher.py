@@ -358,13 +358,6 @@ _REPO_DETAILS_FRAGMENT = """
     stargazers {
       totalCount
     }
-    object(expression: "HEAD") {
-      ... on Commit {
-        history {
-          totalCount
-        }
-      }
-    }
   }
 """
 
@@ -571,12 +564,6 @@ async def _async_process_year_contributions(
 
                 async with lock:
                     if name not in raw_repos_map:
-                        total_repo_commits = 0
-                        obj = repo.get("object")
-                        if obj and "history" in obj:
-                            history = obj.get("history") or {}
-                            total_repo_commits = history.get("totalCount", 0)
-
                         raw_repos_map[name] = {
                             "name": name,
                             "stars": stars,
@@ -585,14 +572,7 @@ async def _async_process_year_contributions(
                             "prs": 0,
                             "issues": 0,
                             "reviews": 0,
-                            "total_repo_commits": total_repo_commits,
                         }
-                    else:
-                        if raw_repos_map[name]["total_repo_commits"] == 0:
-                            obj = repo.get("object")
-                            if obj and "history" in obj:
-                                history = obj.get("history") or {}
-                                raw_repos_map[name]["total_repo_commits"] = history.get("totalCount", 0)
 
                     raw_repos_map[name][stats_key] += count
 
@@ -627,7 +607,7 @@ async def _async_build_contributor_repos(
     # Calculate ranks
     repos_data: list[dict[str, Any]] = []
     for repo_data in raw_repos_map.values():
-        repo_data["rank_level"] = calculate_repo_rank(repo_data["stars"], repo_data["total_repo_commits"])
+        repo_data["rank_level"] = calculate_repo_rank(repo_data["stars"])
         repos_data.append(repo_data)
 
     # Filter excluded repos

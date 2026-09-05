@@ -60,37 +60,18 @@ def test_user_rank_percentile_range():
 # calculate_repo_rank
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
-    ("stars", "commits", "expected"),
+    ("stars", "expected"),
     [
-        # S tier (>10000 stars)
-        (10001, 5001, "S+"),
-        (10001, 1000, "S"),
-        (10001, 50, "S-"),
-        # Boundary: 10000 stars → A tier
-        (10000, 6000, "A+"),
-        # A tier (>1000 stars)
-        (1001, 6000, "A+"),
-        (1001, 200, "A"),
-        (1001, 10, "A-"),
-        # Boundary: 1000 stars → B tier
-        (1000, 6000, "B+"),
-        # B tier (>100 stars)
-        (101, 6000, "B+"),
-        # Boundary: 100 stars → C tier
-        (100, 6000, "C+"),
-        # C tier (>10 stars)
-        (11, 6000, "C+"),
-        # Boundary: 10 stars → D tier
-        (10, 6000, "D+"),
-        # D tier (0-10 stars)
-        (1, 6000, "D+"),
-        (0, 6000, "D+"),
-        # Commit modifier boundaries
-        (10001, 5000, "S"),  # 5000 = neutral upper boundary
-        (10001, 100, "S"),  # 100 = neutral lower boundary
-        # 0 commits: neutral (no modifier)
-        (10001, 0, "S"),
+        (10001, "S"),
+        (10000, "A"),  # Boundary: 10000 stars -> A tier
+        (1001, "A"),
+        (1000, "B"),  # Boundary: 1000 stars -> B tier
+        (101, "B"),
+        (100, "C"),  # Boundary: 100 stars -> C tier
+        (11, "C"),
+        (10, "D"),  # Boundary: 10 stars -> D tier
+        (0, "D"),
     ],
 )
-def test_calculate_repo_rank(stars: int, commits: int, expected: str):
-    assert calculate_repo_rank(stars, commits) == expected
+def test_calculate_repo_rank(stars: int, expected: str):
+    assert calculate_repo_rank(stars) == expected

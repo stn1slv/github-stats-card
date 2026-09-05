@@ -39,7 +39,7 @@ def test_render_contrib_card_rank_display():
                 "prs": 5,
                 "issues": 2,
                 "reviews": 1,
-                "rank_level": "A+",
+                "rank_level": "A",
                 "avatar_b64": None,
             },
             {
@@ -58,50 +58,17 @@ def test_render_contrib_card_rank_display():
 
     svg = render_contrib_card(stats, config)
 
-    assert ">A+<" in svg
-    assert ">B<" in svg
+    assert ">A</text>" in svg
+    assert ">B</text>" in svg
+    # Ranks are single characters, so the badge size is a fixed literal in the
+    # template. Pin it: nothing else asserts it since the scaling was removed.
+    assert 'style="font-size: 10px;">A</text>' in svg
     # The star counts should NOT be present as text
     assert ">100<" not in svg
     assert ">50<" not in svg
     # Row indices #1, #2 should NOT be present
     assert ">#1<" not in svg
     assert ">#2<" not in svg
-
-
-def test_render_contrib_card_font_scaling():
-    """Test that font size scales for multi-character ranks."""
-    stats = {
-        "repos": [
-            {
-                "name": "owner/repo1",
-                "stars": 100,
-                "commits": 10,
-                "prs": 5,
-                "issues": 2,
-                "reviews": 1,
-                "rank_level": "A+",
-                "avatar_b64": None,
-            },
-            {
-                "name": "owner/repo2",
-                "stars": 50,
-                "commits": 5,
-                "prs": 2,
-                "issues": 1,
-                "reviews": 0,
-                "rank_level": "S",
-                "avatar_b64": None,
-            },
-        ]
-    }
-    config = ContribCardConfig()
-
-    svg = render_contrib_card(stats, config)
-
-    # A+ should have font-size: 8px
-    assert 'style="font-size: 8px;">A+<' in svg
-    # S should have font-size: 10px
-    assert 'style="font-size: 10px;">S<' in svg
 
 
 def test_render_contrib_card_clamps_a_too_narrow_width():

@@ -1,6 +1,6 @@
 [project]
 name = "github-stats-card"
-version = "1.3.1"
+version = "1.4.0"
 description = "Generate GitHub Stats Card SVG images locally"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -113,35 +113,22 @@ def calculate_user_rank(
     return {"level": level, "percentile": percentile}
 
 
-def calculate_repo_rank(stars: int, total_repo_commits: int) -> str:
+def calculate_repo_rank(stars: int) -> str:
     """
     Calculate rank for a single repository contribution.
 
     Args:
         stars: Repository star count
-        total_repo_commits: Total commits in the repository (proxy for size/activity)
 
     Returns:
-        Rank string (e.g., "S", "A+", "B-")
+        Rank string ("S", "A", "B", "C" or "D")
     """
-    # 1. Determine base rank from stars
     if stars > 10000:
-        base_rank = "S"
-    elif stars > 1000:
-        base_rank = "A"
-    elif stars > 100:
-        base_rank = "B"
-    elif stars > 10:
-        base_rank = "C"
-    else:
-        base_rank = "D"
-
-    # 2. Apply modifiers based on repo magnitude (total commits)
-    # If magnitude is 0 (unknown or empty), we treat it as neutral to avoid unfair downgrades.
-    modifier = ""
-    if total_repo_commits > 5000:
-        modifier = "+"
-    elif 0 < total_repo_commits < 100:
-        modifier = "-"
-
-    return f"{base_rank}{modifier}"
+        return "S"
+    if stars > 1000:
+        return "A"
+    if stars > 100:
+        return "B"
+    if stars > 10:
+        return "C"
+    return "D"
