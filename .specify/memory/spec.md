@@ -13,7 +13,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
 - **US-007:** As a user, I want to customize the number of repositories displayed on the contributor card.
 - **US-008:** As a user, I want to apply existing themes to the contributor card for consistency.
 - **US-009:** As a user, I want clear feedback if I have no contributions or if I provide invalid limits.
-- **US-010:** As a user, I want the contributor card to rank repositories based on their popularity and magnitude, so that contributing to massive projects (like Debezium) is recognized with a high rank regardless of my commit count.
+- **US-010:** As a user, I want the contributor card to rank repositories by their popularity, so that contributing to a widely used project is recognized with a high rank regardless of my commit count. (Repository magnitude was part of this story until 2026-09-05; the rank is now the star count alone.)
 - **US-011:** As a user generating a contributor card via the CLI, I want to specify which types of contributions to consider (e.g., only commits and pull requests) so that my card highlights only my active code contributions. [Source: specs/003-filter-contrib-types]
 - **US-012:** As a user running card generation via GitHub Actions, I want to configure contribution types via workflow inputs so that my profile is automatically updated with filtered contribution data. [Source: specs/003-filter-contrib-types]
 - **US-013:** As a user whose history spans repositories the provider cannot fully resolve (deleted repos, SSO-restricted orgs), I want the card to still reflect the contributions that were returned, so a single unresolvable entry does not blank out an entire year. [Source: specs/003-filter-contrib-types]
@@ -69,7 +69,7 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
   - **Avatars:** Fetch and embed repository owner's avatar (Base64 encoded) as a circular icon next to the repository name.
   - **Fallback:** Use a generic placeholder icon if avatar fetching fails.
   - **Visuals:** Match the visual style of existing cards (fonts, padding, themes). Default card width 467px (matching the stats card), fixed row height 35px, owner avatars 20x20px circular. [Source: 001-contributor-card]
-  - **Font Scaling:** Automatically scale down rank text font size if it exceeds single character (e.g. "S+" vs "S"): 8px for multi-character ranks, 10px otherwise, so the rank fits the existing circle. [Source: 002-rework-ranking]
+  - **Rank Text Size:** 10px, fixed, so the rank fits the existing circle. Ranks are always one character. The earlier 8px multi-character scaling was removed with the rank modifiers on 2026-09-05; restoring a multi-character rank means restoring the scaling too. [Source: 002-rework-ranking, superseded 2026-09-05]
 - **FR-011: Repository Ranking Logic** [Source: 002-rework-ranking]
   - **Base Rank:** Determined by Repository Star Count:
     - `S`: > 10,000 stars.
@@ -77,11 +77,8 @@ A Python CLI tool that generates beautiful GitHub stats cards as SVG images for 
     - `B`: 101 - 1,000 stars.
     - `C`: 11 - 100 stars.
     - `D`: 0 - 10 stars.
-  - **Modifier:** Determined by Repository Total Commits (Project Magnitude).
-    - `+`: Large/Mature (>5k commits).
-    - `-`: Small/New Project (1-99 commits).
-    - (None): Medium Project (100-5k commits) OR Unknown Magnitude (0 commits).
-  - **Invariant:** The user's global rank MUST NOT be applied to individual repositories. Repository ranks come from `calculate_repo_rank(stars, total_repo_commits)`; the global rank comes from `calculate_user_rank`. Conflating the two was the defect this feature fixed. [Source: 002-rework-ranking]
+  - **No Modifier:** The star count is the whole rank. The `+` (>5k repository commits) and `-` (1-99) modifiers, and the commit-count lookup that produced them, were removed on 2026-09-05 because the modifier was the only consumer of a per-repository GraphQL field. Do not restore them from `specs/002-rework-ranking`, which still documents them as current. [Source: 002-rework-ranking, superseded 2026-09-05]
+  - **Invariant:** The user's global rank MUST NOT be applied to individual repositories. Repository ranks come from `calculate_repo_rank(stars)`; the global rank comes from `calculate_user_rank`. Conflating the two was the defect this feature fixed. [Source: 002-rework-ranking]
 - **FR-012: Repository Exclusion Wildcards** [Source: 001-contributor-card]
   - Repository exclusion MUST support wildcard (*) matching and owner-omitted matching (e.g., "awesome-*" matches any repo starting with "awesome-" regardless of owner). Matching MUST be case-insensitive.
 - **FR-013: Contribution Type Filtering (CLI)** [Source: specs/003-filter-contrib-types]
@@ -149,7 +146,7 @@ Dataclass representing an aggregated programming language.
 TypedDict representing a contributed repository:
 - `name` (`owner/repo`), `stars`, `rank_level`, `avatar_b64` (`str | None`)
 - `commits`, `prs`, `issues`, `reviews` (`int`): the user's per-type contribution counts for that repository. These are the counters populated selectively by the `--types` filter (FR-013).
-- Note: `total_repo_commits` (project magnitude) is an intermediate value used to compute `rank_level`; it is not carried on the final entity.
+- Note: `rank_level` is computed from `stars` alone. The `total_repo_commits` intermediate value was removed on 2026-09-05 along with the rank modifiers.
 
 ### ContributorStats (`src/github/fetcher.py`) [Source: 001-contributor-card]
 TypedDict wrapping the fetch result: `repos`, the sorted and sliced list of `ContributorRepo`. Returned by `fetch_contributor_stats` / `async_fetch_contributor_stats` and consumed by `render_contrib_card`.
@@ -159,7 +156,7 @@ TypedDict wrapping the fetch result: `repos`, the sorted and sliced list of `Con
 ### Data Flow by Card Type
 
 **1. Stats Card Flow:**
-`cli.stats` -> `github.fetcher.fetch_stats` -> `github.client.graphql_query` -> `github.rank.calculate_user_rank` -> `rendering.stats.render_stats_card` -> `rendering.base.render_card` -> Output File
+`cli.user_stats` (alias `stats`) -> `github.fetcher.fetch_user_stats` -> `github.client.graphql_query` -> `github.rank.calculate_user_rank` -> `rendering.user_stats.render_user_stats_card` -> `rendering.base.render_card` -> Output File
 
 **2. Top Languages Card Flow:**
 `cli.top_langs` -> `github.langs_fetcher.fetch_top_languages` -> `github.client.graphql_query` -> `rendering.langs.render_top_languages` -> `rendering.base.render_card` -> Output File

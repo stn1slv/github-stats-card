@@ -32,7 +32,7 @@ src/
 │   ├── contrib.py       # Contributor Card renderer
 │   ├── icons.py         # SVG icons
 │   ├── langs.py         # Top Languages Card renderer
-│   ├── stats.py         # Stats Card renderer
+│   ├── user_stats.py    # User Stats Card renderer
 │   └── themes.py        # Theme definitions
 ├── cli.py               # CLI orchestration
 ├── __init__.py
@@ -56,6 +56,10 @@ src/
 - All new features must align with the 3-tier sub-package architecture.
 
 ## Recent Changes
+- **Repository Rank Simplification (2026-09-05):** Removed the `+`/`-` magnitude modifiers from the `contrib` card rank.
+  - `calculate_repo_rank` now takes only `stars` and returns `S`, `A`, `B`, `C` or `D`.
+  - Deleted the commit-count pipeline the modifier was the sole consumer of: the `object(expression: "HEAD")` GraphQL fragment, the `total_repo_commits` key and its back-fill branch.
+  - Ranks are always one character, so the rank badge font size is a fixed 10px and the multi-character scaling was dropped. Released as 1.4.0.
 - **Contribution Types Hardening (2026-08-09):** Follow-up on the filtering feature after an audit of shipped code against its artifacts. [Source: specs/003-filter-contrib-types]
   - `action.yml` no longer builds a command string and runs it through `eval`. All inputs arrive as environment variables and options are collected into a bash array passed directly to the CLI, which removes the shell-injection class entirely.
   - A test asserts the literal `--contrib-types` appears both in `action.yml` and in the `contrib` command's Click parameter list, so dropping the alias from the CLI or switching the Action to `--types` now fails the suite. The flag name is hardcoded in the test, so a rename must touch `src/cli.py`, `action.yml` and the test together.

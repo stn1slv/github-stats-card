@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-09-05
+
+### Removed
+
+- The `+` and `-` rank modifiers on the `contrib` card. A repository's rank is now derived from its star count alone and is always one of `S`, `A`, `B`, `C`, `D`. Previously a repository with more than 5000 total commits earned a `+` and one with fewer than 100 earned a `-`. Cards regenerated after this release will show `S` where they showed `S+`, and `C` where they showed `C-`. Nothing else about the card changes, and the `user-stats` card's own rank (`S`, `A+`, `A`, `A-`, ...) is unaffected.
+- The repository commit-count lookup that fed those modifiers. The `contrib` GraphQL query no longer requests `object(expression: "HEAD") { history { totalCount } }` for each repository, which makes the query cheaper and removes one field that commonly returned `null` for repositories with an unreadable default branch.
+
 ## [1.3.1] - 2026-09-03
 
 ### Changed
